@@ -6,11 +6,11 @@ variable "tags" {
 
 variable "name" {
   description = "name of resources"
-  type = "string"
+  type        = "string"
 }
 
 variable "subnet_ids" {
   description = "list of subnet ids"
-  type = "list"
-  default = []
+  type        = "list"
+  default     = []
 }
