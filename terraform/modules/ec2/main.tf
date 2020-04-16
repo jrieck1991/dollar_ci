@@ -2,6 +2,10 @@ resource "aws_launch_template" "main" {
   name_prefix   = var.name
   image_id      = var.image_id
   instance_type = var.instance_type
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.asg.arn
+  }
 }
 
 resource "aws_autoscaling_group" "main" {
@@ -14,4 +18,38 @@ resource "aws_autoscaling_group" "main" {
   }
 
   vpc_zone_identifier = var.subnet_ids
+}
+
+resource "aws_iam_instance_profile" "asg" {
+  name = var.name 
+  role = aws_iam_role.asg.name
+}
+
+resource "aws_iam_role" "asg" {
+  name = var.name 
+
+  assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Principal": {
+               "Service": "ec2.amazonaws.com"
+            },
+            "Effect": "Allow",
+            "Sid": ""
+        }
+    ]
+}
+EOF
+}
+
+data "aws_iam_policy" "ssm" {
+  arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "asg" {
+  role       = aws_iam_role.asg.name
+  policy_arn = data.aws_iam_policy.ssm.arn
 }
