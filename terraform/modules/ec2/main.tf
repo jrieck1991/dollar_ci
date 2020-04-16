@@ -20,13 +20,14 @@ resource "aws_autoscaling_group" "main" {
   vpc_zone_identifier = var.subnet_ids
 }
 
+// IAM resources used to enabled SSM on ec2 instances in the ASG
 resource "aws_iam_instance_profile" "asg" {
-  name = var.name 
+  name = var.name
   role = aws_iam_role.asg.name
 }
 
 resource "aws_iam_role" "asg" {
-  name = var.name 
+  name = var.name
 
   assume_role_policy = <<EOF
 {
@@ -45,6 +46,7 @@ resource "aws_iam_role" "asg" {
 EOF
 }
 
+// get managed aws SSM policy
 data "aws_iam_policy" "ssm" {
   arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
