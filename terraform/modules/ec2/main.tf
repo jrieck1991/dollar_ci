@@ -5,12 +5,13 @@ resource "aws_launch_template" "main" {
 }
 
 resource "aws_autoscaling_group" "main" {
-  desired_capacity = 1
+  min_size = 1
+  max_size = 1
 
   launch_template {
     id      = aws_launch_template.main.id
     version = "$Latest"
   }
 
-  vpc_zone_identifier = [var.subnet_ids]
+  vpc_zone_identifier = var.subnet_ids
 }
