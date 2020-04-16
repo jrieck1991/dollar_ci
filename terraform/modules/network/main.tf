@@ -3,9 +3,10 @@ resource "aws_vpc" "main" {
   tags = var.tags
 }
 
-resource "aws_subnet" "main" {
+resource "aws_subnet" "public" {
   vpc_id     = "${aws_vpc.main.id}"
-  cidr_block = cidrsubnets(aws_vpc.main.cidr_block, 8)
+  cidr_block = cidrsubnet(aws_vpc.main.cidr_block, 8, 1)
+  map_public_ip_on_launch = true
 
   tags = var.tags
 }
