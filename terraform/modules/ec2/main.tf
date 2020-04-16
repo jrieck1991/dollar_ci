@@ -1,7 +1,7 @@
 resource "aws_launch_template" "main" {
   name_prefix   = var.name
   image_id      = var.image_id
-  instance_type = "t2.micro"
+  instance_type = var.instance_type
 }
 
 resource "aws_autoscaling_group" "main" {
