@@ -1,0 +1,36 @@
+{
+    "variables": {
+      "aws_profile": "{{env `AWS_PROFILE`}}"
+    },
+    "builders": [
+      {
+        "type": "amazon-ebs",
+        "profile": "{{user `aws_profile`}}",
+        "region": "us-east-1",
+        "subnet_id": "subnet-048fd78903181c11b",
+        "associate_public_ip_address": true,
+        "source_ami_filter": {
+          "filters": {
+            "virtualization-type": "hvm",
+            "name": "amzn2-ami-hvm-*-x86_64-gp2",
+            "root-device-type": "ebs"
+          },
+          "owners": [
+            "137112412989"
+          ],
+          "most_recent": true
+        },
+        "instance_type": "t2.micro",
+        "ssh_username": "ec2-user",
+        "ami_name": "http_handlers_{{timestamp}}",
+        "ami_users": "766822175569"
+      }
+    ],
+    "provisioners": [
+      {
+        "type": "file",
+        "source": "http_handlers/target/release/http_handlers",
+        "destination": "/home/ec2-user/http_handlers"
+      }
+    ]
+}  
