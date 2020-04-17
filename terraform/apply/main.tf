@@ -1,11 +1,11 @@
+provider "aws" {
+  region = "us-east-1"
+}
+
 locals {
   tags = {
     app = "dollar_ci"
   }
-}
-
-provider "aws" {
-  region = "us-east-1"
 }
 
 module "network" {

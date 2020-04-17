@@ -1,14 +1,13 @@
 {
     "variables": {
-      "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
-      "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}"
+      "aws_profile": "{{env `AWS_PROFILE`}}"
     },
     "builders": [
       {
         "type": "amazon-ebs",
-        "access_key": "{{user `aws_access_key`}}",
-        "secret_key": "{{user `aws_secret_key`}}",
+        "profile": "{{user `aws_profile`}}",
         "region": "us-east-1",
+        "subnet_id": "subnet-0fda1ae8d60fbf315",
         "source_ami_filter": {
           "filters": {
             "virtualization-type": "hvm",
@@ -22,14 +21,15 @@
         },
         "instance_type": "t2.micro",
         "ssh_username": "ec2-user",
-        "ami_name": "http_handlers"
+        "ami_name": "http_handlers",
+        "ami_users": "766822175569"
       }
     ],
     "provisioners": [
       {
         "type": "file",
-        "source": "build/file.txt",
-        "destination": "/home/ec2-user"
+        "source": "http_handlers/target/release/http_handlers",
+        "destination": "/home/ec2-user/http_handlers"
       }
     ]
 }  
