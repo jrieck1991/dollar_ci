@@ -34,6 +34,7 @@ resource "aws_launch_template" "main" {
   user_data = filebase64("${path.module}/provision.sh")
 }
 
+// autoscaling group of ec2 spot instances
 resource "aws_autoscaling_group" "main" {
   min_size = 1
   max_size = 1
