@@ -7,5 +7,5 @@ async fn main() {
         .and(warp::path("events")
         .map(|| "Hello" ));
     
-    warp::serve(events).run(([0, 0, 0, 0], 8080)).await;
+    warp::serve(events).run(([0, 0, 0, 0], 80)).await;
 }
