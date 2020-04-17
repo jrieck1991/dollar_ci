@@ -25,9 +25,11 @@
         "ami_name": "http_handlers"
       }
     ],
-    "provisioners": [{
+    "provisioners": [
+      {
         "type": "file",
-        "source": "http_handlers.tar.gz",
+        "source": "build/file.txt",
         "destination": "/home/ec2-user"
-      }]
-}
+      }
+    ]
+}  
