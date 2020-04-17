@@ -7,6 +7,10 @@ resource "aws_launch_template" "main" {
   iam_instance_profile {
     arn = aws_iam_instance_profile.asg.arn
   }
+
+  instance_market_options {
+    market_type = "spot"
+  }
 }
 
 resource "aws_autoscaling_group" "main" {
@@ -19,6 +23,8 @@ resource "aws_autoscaling_group" "main" {
   }
 
   vpc_zone_identifier = var.subnet_ids
+
+  tags = var.tags
 }
 
 // IAM resources used to enabled SSM on ec2 instances in the ASG
@@ -49,7 +55,7 @@ EOF
 
 // get managed aws SSM policy
 data "aws_iam_policy" "ssm" {
-  arn = "arn:aws:iam::aws:policy/service-role/AmazonSSMManagedInstanceCore"
+  arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_role_policy_attachment" "asg" {
