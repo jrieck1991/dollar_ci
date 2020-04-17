@@ -30,7 +30,7 @@
       {
         "type": "file",
         "source": "http_handlers/target/x86_64-unknown-linux-musl/release/http_handlers",
-        "destination": "/http_handlers"
+        "destination": "/home/ec2-user/http_handlers"
       }
     ]
 }  
