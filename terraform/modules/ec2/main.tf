@@ -2,6 +2,7 @@ resource "aws_launch_template" "main" {
   name_prefix   = var.name
   image_id      = var.image_id
   instance_type = var.instance_type
+  key_name      = "jack"
 
   iam_instance_profile {
     arn = aws_iam_instance_profile.asg.arn
@@ -31,24 +32,24 @@ resource "aws_iam_role" "asg" {
 
   assume_role_policy = <<EOF
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": "sts:AssumeRole",
-            "Principal": {
-               "Service": "ec2.amazonaws.com"
-            },
-            "Effect": "Allow",
-            "Sid": ""
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
 }
 EOF
 }
 
 // get managed aws SSM policy
 data "aws_iam_policy" "ssm" {
-  arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
 }
 
 resource "aws_iam_role_policy_attachment" "asg" {
