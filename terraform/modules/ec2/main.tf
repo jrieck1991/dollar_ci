@@ -1,6 +1,26 @@
+// get custom ami built by packer
+data "aws_ami" "main" {
+  executable_users = ["self"]
+  most_recent      = true
+  name_regex       = "^http_handlers$"
+  owners           = ["self"]
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+// a launch template for an autoscaling group with
+// spot instances
 resource "aws_launch_template" "main" {
   name_prefix   = var.name
-  image_id      = var.image_id
+  image_id      = data.aws_ami.main.image_id
   instance_type = var.instance_type
 
   iam_instance_profile {
@@ -32,6 +52,7 @@ resource "aws_iam_instance_profile" "asg" {
   role = aws_iam_role.asg.name
 }
 
+// role for instance profile
 resource "aws_iam_role" "asg" {
   name = var.name
 
