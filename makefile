@@ -12,6 +12,7 @@ destroy:
 	&& terraform init \
 	&& terraform destroy && popd
 
+# create new ami
 ami: compile
 	PACKER_LOG=1 packer build ./build/http_handlers.json 
 
