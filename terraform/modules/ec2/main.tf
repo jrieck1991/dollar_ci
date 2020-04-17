@@ -2,7 +2,7 @@
 data "aws_ami" "main" {
   executable_users = ["self"]
   most_recent      = true
-  name_regex       = "^http_handlers$"
+  name_regex       = "^http_handlers_*"
   owners           = ["self"]
 
   filter {

@@ -1,4 +1,4 @@
-.PHONY:
+.PHONY: infra destroy ami
 
 infra:
 	pushd terraform/apply \
@@ -9,4 +9,4 @@ destroy:
 	&& terraform destroy && popd
 
 ami:
-	packer build ./build/http_handlers.json 
+	PACKER_LOG=1 packer build ./build/http_handlers.json 
