@@ -8,4 +8,8 @@ edition = "2018"
 
 [dependencies]
 tokio = { version = "0.2", features = ["macros"] }
+<<<<<<< HEAD
 warp = "0.2"
+=======
+warp = "0.2"
+>>>>>>> 8f378dac2bcd0ef5d16e2911d84ff6db8261ad03
