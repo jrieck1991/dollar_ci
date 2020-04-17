@@ -7,7 +7,7 @@
         "type": "amazon-ebs",
         "profile": "{{user `aws_profile`}}",
         "region": "us-east-1",
-        "subnet_id": "subnet-0fda1ae8d60fbf315",
+        "subnet_id": "subnet-fab45dd7",
         "source_ami_filter": {
           "filters": {
             "virtualization-type": "hvm",
