@@ -1,5 +1,7 @@
 .PHONY: infra destroy ami
 
+## AWS targets expect 'AWS_PROFILE' to be set
+
 apply:
 	pushd terraform/apply \
 	&& terraform init \
