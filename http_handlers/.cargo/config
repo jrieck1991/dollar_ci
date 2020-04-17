@@ -1,0 +1,6 @@
+[target.x86_64-unknown-linux-musl]
+linker = "x86_64-linux-musl-gcc"
+
+[term]
+verbose = false        # whether cargo provides verbose output
+color = 'auto'         # whether cargo colorizes output
