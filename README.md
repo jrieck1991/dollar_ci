@@ -4,6 +4,4 @@ cheap ci/cd
 
 ## TODO
 
-* setup webserver to accept github webhooks
-* lock down webserver access at security group level
-* automate deployment
+* deploy rust http_handlers to autoscaling ec2 instance
