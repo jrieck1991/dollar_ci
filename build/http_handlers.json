@@ -24,5 +24,10 @@
         "ssh_username": "ec2-user",
         "ami_name": "http_handlers"
       }
-    ]
+    ],
+    "provisioners": [{
+        "type": "file",
+        "source": "http_handlers.tar.gz",
+        "destination": "/home/ec2-user"
+      }]
 }
