@@ -1,6 +1,6 @@
 .PHONY: infra destroy ami
 
-infra:
+apply:
 	pushd terraform/apply \
 	&& terraform init \
 	&& terraform apply && popd
@@ -9,7 +9,7 @@ destroy:
 	pushd terraform/apply \
 	&& terraform destroy && popd
 
-ami: http_handlers
+ami: compile
 	PACKER_LOG=1 packer build ./build/http_handlers.json 
 
 compile:
