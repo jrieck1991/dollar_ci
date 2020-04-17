@@ -1,12 +1,30 @@
 resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr
-  tags       = var.tags
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+
+  tags = var.tags
 }
 
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, 1)
   map_public_ip_on_launch = true
+
+  tags = var.tags
+}
+
+resource "aws_internet_gateway" "public" {
+  vpc_id = aws_vpc.main.id
+  tags   = var.tags
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = "${aws_vpc.main.id}"
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.public.id
+  }
 
   tags = var.tags
 }

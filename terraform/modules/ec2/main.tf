@@ -2,7 +2,6 @@ resource "aws_launch_template" "main" {
   name_prefix   = var.name
   image_id      = var.image_id
   instance_type = var.instance_type
-  key_name      = "jack"
 
   iam_instance_profile {
     arn = aws_iam_instance_profile.asg.arn
@@ -11,6 +10,8 @@ resource "aws_launch_template" "main" {
   instance_market_options {
     market_type = "spot"
   }
+
+  user_data = filebase64("${path.module}/provision.sh")
 }
 
 resource "aws_autoscaling_group" "main" {
@@ -23,8 +24,6 @@ resource "aws_autoscaling_group" "main" {
   }
 
   vpc_zone_identifier = var.subnet_ids
-
-  tags = var.tags
 }
 
 // IAM resources used to enabled SSM on ec2 instances in the ASG
