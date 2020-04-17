@@ -7,6 +7,7 @@ apply:
 
 destroy:
 	pushd terraform/apply \
+	&& terraform init \
 	&& terraform destroy && popd
 
 ami: compile
