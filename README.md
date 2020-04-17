@@ -14,3 +14,4 @@ Images are built in the default VPC of `us-east-1`. To recreate a default vpc ru
 
 * a way to clean up old amis + snapshots
 * TLS
+* packer with t2.nano
