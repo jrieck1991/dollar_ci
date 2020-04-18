@@ -15,3 +15,7 @@ Images are built in the default VPC of `us-east-1`. To recreate a default vpc ru
 * a way to clean up old amis + snapshots
 * TLS
 * packer with t2.nano
+* rolling update cluster
+* billing alerts
+* load balancing
+* s3 bucket for terraform backups
