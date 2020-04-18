@@ -16,6 +16,11 @@ data "aws_ami" "main" {
   }
 }
 
+// get subnets from vpc id
+data "aws_subnet_ids" "public" {
+  vpc_id = var.vpc_id
+}
+
 // a launch template for an autoscaling group with
 // spot instances
 resource "aws_launch_template" "main" {
@@ -31,6 +36,8 @@ resource "aws_launch_template" "main" {
     market_type = "spot"
   }
 
+  vpc_security_group_ids = [aws_security_group.asg.id]
+
   user_data = filebase64("${path.module}/provision.sh")
 }
 
@@ -44,7 +51,7 @@ resource "aws_autoscaling_group" "main" {
     version = aws_launch_template.main.latest_version
   }
 
-  vpc_zone_identifier = var.subnet_ids
+  vpc_zone_identifier = data.aws_subnet_ids.public.ids
 }
 
 // IAM resources used to enabled SSM on ec2 instances in the ASG
@@ -82,4 +89,30 @@ data "aws_iam_policy" "ssm" {
 resource "aws_iam_role_policy_attachment" "asg" {
   role       = aws_iam_role.asg.name
   policy_arn = data.aws_iam_policy.ssm.arn
+}
+
+// ec2 instance security group
+resource "aws_security_group" "asg" {
+  name        = var.name
+  description = "Allow http traffic on port 80"
+  vpc_id      = var.vpc_id
+
+  // http in
+  ingress {
+    description = "http"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  // any out
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = var.tags
 }

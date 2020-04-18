@@ -21,7 +21,7 @@ module "ec2" {
 
   name          = "dollar_ci"
   instance_type = "t2.micro"
-  subnet_ids    = module.network.public_subnet_ids
+  vpc_id        = module.network.vpc_id
 
   tags = local.tags
 }

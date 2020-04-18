@@ -9,10 +9,9 @@ variable "name" {
   type        = string
 }
 
-variable "subnet_ids" {
-  description = "list of subnet ids"
-  type        = list
-  default     = []
+variable "vpc_id" {
+  description = "id of vpc to use"
+  type        = string
 }
 
 variable "instance_type" {
