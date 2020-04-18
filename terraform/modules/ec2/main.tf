@@ -95,7 +95,7 @@ resource "aws_iam_role_policy_attachment" "asg" {
 resource "aws_security_group" "asg" {
   name        = var.name
   description = "Allow http traffic on port 80"
-  vpc_id = var.vpc_id
+  vpc_id      = var.vpc_id
 
   // http in
   ingress {

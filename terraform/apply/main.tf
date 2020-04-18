@@ -21,7 +21,7 @@ module "ec2" {
 
   name          = "dollar_ci"
   instance_type = "t2.micro"
-  vpc_id = module.network.vpc_id
+  vpc_id        = module.network.vpc_id
 
   tags = local.tags
 }
