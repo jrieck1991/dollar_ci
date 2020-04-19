@@ -88,6 +88,15 @@ fn check_run_complete(check_id: String, success: bool) {
 fn clone(head_sha: String) {
 }
 
+// run the tests
+// clone head_sha
+// read check config in root of repo
+// run defined tests
+// return success bool
+fn run_check(head_sha: String) -> bool {
+    true
+}
+
 // listen for 'check_suite' of type 'requested', this means new code is pushed to a repo
 // 'rerequested' means the user manually requested a re run of the check
 // create JWT from pem to authenticate https requests to github
