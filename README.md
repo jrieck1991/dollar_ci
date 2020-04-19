@@ -19,3 +19,4 @@ Images are built in the default VPC of `us-east-1`. To recreate a default vpc ru
 * billing alerts
 * load balancing
 * s3 bucket for terraform backups
+* rename to dollar-ci
