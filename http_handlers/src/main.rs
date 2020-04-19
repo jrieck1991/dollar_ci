@@ -1,6 +1,6 @@
 use warp::Filter;
-
 use serde_derive::{Deserialize, Serialize};
+use git2::Repository;
 
 #[derive(Deserialize, Serialize)]
 struct Event {
@@ -86,6 +86,10 @@ fn check_run_complete(check_id: String, success: bool) {
 
 // clone head_sha of git branch
 fn clone(head_sha: String) {
+    let repo = match Repository::clone("https://token:repo.git") {
+        Ok(repo) => repo,
+        Err(e) => panic!("failed to clone: {}", e),
+    };
 }
 
 // run the tests
