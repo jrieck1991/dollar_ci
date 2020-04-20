@@ -11,6 +11,7 @@ struct Event {
     action: String,
     check_suite: Check_Suite,
     app: App,
+    repo: Repository,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -23,6 +24,12 @@ struct Check_Suite {
 #[derive(Deserialize, Serialize)]
 struct App {
     id: u64,
+    check_runs_url: String,
+}
+
+#[derive(Deserialize, Serialize)]
+struct Repository {
+    clone_url: String,
 }
 
 #[tokio::main]
@@ -75,7 +82,7 @@ fn get_jwt(pem_str: String) -> Result<String, Error> {
 }
 
 // tell github to create 'check_run'
-fn check_run_create(name: String, head_sha: String, owner: String, repo: String, check_id: String) {
+fn check_run_create(name: String, head_sha: String, url: String) {
 
     // init http client
     let client = reqwest::Client::new();
@@ -88,14 +95,14 @@ fn check_run_create(name: String, head_sha: String, owner: String, repo: String,
         }"#, name, head_sha)
 
     // send post
-    let res = client.post("https://github.com/repos/{}/{}/check-rus/{}", owner, repo, check_id)
+    let res = client.post(url)
         .json(body)
         .send()
         .await?; 
 }
 
 // update 'check_run' to 'in progress'
-fn check_run_start(name: String, check_id: String, owner: String, repo: String) {
+fn check_run_start(name: String, url: String) {
 
     // init http client
     let client = reqwest::Client::new();
@@ -109,14 +116,14 @@ fn check_run_start(name: String, check_id: String, owner: String, repo: String) 
         }"#, name, Instant::now())
 
     // send post
-    let res = client.post("https://github.com/repos/{}/{}/check-rus/{}", owner, repo, check_id)
+    let res = client.post(url)
         .json(body)
         .send()
         .await?;
 }
 
 // mark check_run as complete
-fn check_run_complete(check_id: String, owner: String, repo: String, success: bool) {
+fn check_run_complete(url: String, success: bool) {
 
     // init http client
     let client = reqwest::Client::new();
@@ -137,7 +144,7 @@ fn check_run_complete(check_id: String, owner: String, repo: String, success: bo
         }"#, name, conclusion, Instant::now());
 
     // post
-    let res = client.post("https://github.com/repos/{}/{}/check-rus/{}", owner, repo, check_id)
+    let res = client.post(url)
         .json(body)
         .send()
         .await?;
