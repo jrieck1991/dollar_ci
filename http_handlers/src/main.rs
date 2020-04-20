@@ -1,8 +1,8 @@
-use warp::Filter;
-use serde_derive::{Deserialize, Serialize};
 use git2::Repository;
+use serde_derive::{Deserialize, Serialize};
 use time::Instant;
-  
+use warp::Filter;
+
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{encode, EncodingKey, Header};
 
@@ -34,28 +34,21 @@ struct Repository {
 
 #[tokio::main]
 async fn main() {
-
     let events = warp::post()
         .and(warp::body::json())
-        .map(|action, mut event: Event|  {
-            
-        });
-    
+        .map(|action, mut event: Event| {});
+
     warp::serve(events).run(([0, 0, 0, 0], 80)).await;
 }
 
 // requested listens for actions 'requested' and 'rerequested'
 fn requested() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("events")
-        .and(warp::post())
-        .and(json_body())
+    warp::path!("events").and(warp::post()).and(json_body())
 }
 
 // created listens for 'check_run' 'created' events
 fn created() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("events")
-        .and(warp::post())
-        .and(json_body())
+    warp::path!("events").and(warp::post()).and(json_body())
 }
 
 // assert body is json and within size limit
@@ -65,9 +58,12 @@ fn json_body() -> impl Filter<Extract = (Event,), Error = warp::Rejection> + Clo
 
 // create jwt from pem
 fn get_jwt(pem_str: String) -> Result<String, Error> {
-
     // define claims
-    let my_claims = Claims { sub: "dollar-ci".to_owned(), company: "dollar-ci".to_owned(), exp: 10000000000 };
+    let my_claims = Claims {
+        sub: "dollar-ci".to_owned(),
+        company: "dollar-ci".to_owned(),
+        exp: 10000000000,
+    };
 
     // setup header
     let mut header = Header::default();
@@ -75,7 +71,11 @@ fn get_jwt(pem_str: String) -> Result<String, Error> {
     header.alg = Algorithm::RS256;
 
     // encode and receive token that can be used in http headers
-    let token = match encode(&header, &my_claims, &EncodingKey::from_secret(pem_str.to_bytes())) {
+    let token = match encode(
+        &header,
+        &my_claims,
+        &EncodingKey::from_secret(pem_str.to_bytes()),
+    ) {
         Ok(t) => Ok(t),
         Err(e) => Err(e),
     };
@@ -83,48 +83,46 @@ fn get_jwt(pem_str: String) -> Result<String, Error> {
 
 // tell github to create 'check_run'
 fn check_run_create(name: String, head_sha: String, url: String) {
-
     // init http client
     let client = reqwest::Client::new();
 
     // create body
-    let body = format!(r#"
+    let body = format!(
+        r#"
         {
             "name": "{}",
             "head_sha": "{}"
-        }"#, name, head_sha)
+        }"#,
+        name, head_sha
+    );
 
     // send post
-    let res = client.post(url)
-        .json(body)
-        .send()
-        .await?; 
+    let res = client.post(url).json(body).send().await?;
 }
 
 // update 'check_run' to 'in progress'
 fn check_run_start(name: String, url: String) {
-
     // init http client
     let client = reqwest::Client::new();
 
     // form request body
-    let body = format!(r#"
+    let body = format!(
+        r#"
         {
             "name": "{}",
             "status": "in_progress",
             "started_at": {}
-        }"#, name, Instant::now())
+        }"#,
+        name,
+        Instant::now()
+    );
 
     // send post
-    let res = client.post(url)
-        .json(body)
-        .send()
-        .await?;
+    let res = client.post(url).json(body).send().await?;
 }
 
 // mark check_run as complete
 fn check_run_complete(url: String, success: bool) {
-
     // init http client
     let client = reqwest::Client::new();
 
@@ -135,28 +133,29 @@ fn check_run_complete(url: String, success: bool) {
     };
 
     // form request body
-    let body = format!(r#"
+    let body = format!(
+        r#"
         {
             "name": "{}",
             "status": "completed",
             "conclusion": "{}",
             "completed_at": {}
-        }"#, name, conclusion, Instant::now());
+        }"#,
+        name,
+        conclusion,
+        Instant::now()
+    );
 
     // post
-    let res = client.post(url)
-        .json(body)
-        .send()
-        .await?;
+    let res = client.post(url).json(body).send().await?;
 }
 
 // clone head_sha of git branch
 // requires token of type 'x-access-token'
 // path is the repository path
 fn clone(head_sha: String, token: String, path: String) {
-
     // form clone url from token and path
-    let url = format!("https://{}@github.com/{}.git", token, path)
+    let url = format!("https://{}@github.com/{}.git", token, path);
 
     // clone repo
     let repo = match Repository::clone(url) {
@@ -174,6 +173,23 @@ fn clone(head_sha: String, token: String, path: String) {
 // return success bool
 fn run_check(head_sha: String) -> bool {
     true
+}
+
+#[cfg(test)]
+mod tests {
+
+    // read test github json into string
+    // only for tests
+    fn read_payload() {
+        let mut file = File::open("test_github_payload.json").unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+
+        let json = serde_json::from_str(&data).unwrap().to_string();
+    }
+
+    #[test]
+    fn parse_github_event() {}
 }
 
 // listen for 'check_suite' of type 'requested', this means new code is pushed to a repo
