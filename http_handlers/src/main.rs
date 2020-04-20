@@ -1,6 +1,7 @@
 use warp::Filter;
 use serde_derive::{Deserialize, Serialize};
 use git2::Repository;
+use time::Instant;
 
 #[derive(Deserialize, Serialize)]
 struct Event {
@@ -33,7 +34,7 @@ async fn main() {
     warp::serve(events).run(([0, 0, 0, 0], 80)).await;
 }
 
-// requested listenes for actions of 'requested' and 'rerequested'
+// requested listens for actions 'requested' and 'rerequested'
 fn requested() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("events")
         .and(warp::post())
@@ -58,38 +59,89 @@ fn get_jwt() -> String {
 }
 
 // tell github to create 'check_run'
-fn check_run_create(name: String, head_sha: String) {
+fn check_run_create(name: String, head_sha: String, owner: String, repo: String, check_id: String) {
+
+    // init http client
     let client = reqwest::Client::new();
-    let res = client.post("http://somewhere.com")
-        .json("body")
+
+    // create body
+    let body = format!(r#"
+        {
+            "name": "{}",
+            "head_sha": "{}"
+        }"#, name, head_sha)
+
+    // send post
+    let res = client.post("https://github.com/repos/{}/{}/check-rus/{}", owner, repo, check_id)
+        .json(body)
         .send()
-        .await?;
+        .await?; 
 }
 
 // update 'check_run' to 'in progress'
-fn check_run_start(check_id: String) {
+fn check_run_start(name: String, check_id: String, owner: String, repo: String) {
+
+    // init http client
     let client = reqwest::Client::new();
-    let res = client.post("http://somewhere.com")
-        .json("body")
+
+    // form request body
+    let body = format!(r#"
+        {
+            "name": "{}",
+            "status": "in_progress",
+            "started_at": {}
+        }"#, name, Instant::now())
+
+    // send post
+    let res = client.post("https://github.com/repos/{}/{}/check-rus/{}", owner, repo, check_id)
+        .json(body)
         .send()
         .await?;
 }
 
 // mark check_run as complete
-fn check_run_complete(check_id: String, success: bool) {
+fn check_run_complete(check_id: String, owner: String, repo: String, success: bool) {
+
+    // init http client
     let client = reqwest::Client::new();
-    let res = client.post("http://somewhere.com")
-        .json("body")
+
+    // define success param
+    let conclusion = String::from("success");
+    if !success {
+        conclusion = String::from("failure");
+    };
+
+    // form request body
+    let body = format!(r#"
+        {
+            "name": "{}",
+            "status": "completed",
+            "conclusion": "{}",
+            "completed_at": {}
+        }"#, name, conclusion, Instant::now());
+
+    // post
+    let res = client.post("https://github.com/repos/{}/{}/check-rus/{}", owner, repo, check_id)
+        .json(body)
         .send()
         .await?;
 }
 
 // clone head_sha of git branch
-fn clone(head_sha: String) {
-    let repo = match Repository::clone("https://token:repo.git") {
+// requires token of type 'x-access-token'
+// path is the repository path
+fn clone(head_sha: String, token: String, path: String) {
+
+    // form clone url from token and path
+    let url = format!("https://{}@github.com/{}.git", token, path)
+
+    // clone repo
+    let repo = match Repository::clone(url) {
         Ok(repo) => repo,
         Err(e) => panic!("failed to clone: {}", e),
     };
+
+    // package repo
 }
 
 // run the tests
