@@ -54,9 +54,9 @@ mod handlers {
 
         // route event based on action
         match event.action.as_str() {
-            "requested" => Ok(StatusCode::OK),
-            "rerequested" => Ok(StatusCode::OK),
-            "created" => Ok(StatusCode::OK),
+            "requested" => Ok(StatusCode::OK), // create check run
+            "rerequested" => Ok(StatusCode::OK), // create check run
+            "created" => Ok(StatusCode::OK), // update check run to in progress
             _ => Ok(StatusCode::BAD_REQUEST),
         }
     }
