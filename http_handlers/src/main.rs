@@ -2,6 +2,9 @@ use warp::Filter;
 use serde_derive::{Deserialize, Serialize};
 use git2::Repository;
 use time::Instant;
+  
+use jsonwebtoken::errors::ErrorKind;
+use jsonwebtoken::{encode, EncodingKey, Header};
 
 #[derive(Deserialize, Serialize)]
 struct Event {
@@ -48,14 +51,27 @@ fn created() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection>
         .and(json_body())
 }
 
-// assert body is json and within a size limit
+// assert body is json and within size limit
 fn json_body() -> impl Filter<Extract = (Event,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
 // create jwt from pem
-fn get_jwt() -> String {
-    let jwt = String::from("JWT STRING HERE")
+fn get_jwt(pem_str: String) -> Result<String, Error> {
+
+    // define claims
+    let my_claims = Claims { sub: "dollar-ci".to_owned(), company: "dollar-ci".to_owned(), exp: 10000000000 };
+
+    // setup header
+    let mut header = Header::default();
+    header.kid = Some("signing_key".to_owned());
+    header.alg = Algorithm::RS256;
+
+    // encode and receive token that can be used in http headers
+    let token = match encode(&header, &my_claims, &EncodingKey::from_secret(pem_str.to_bytes())) {
+        Ok(t) => Ok(t),
+        Err(e) => Err(e),
+    };
 }
 
 // tell github to create 'check_run'
