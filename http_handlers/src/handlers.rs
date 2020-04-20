@@ -1,0 +1,96 @@
+use serde::{Deserialize, Serialize};
+
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Event {
+    action: String,
+    check_suite: CheckSuite,
+    repository: Repo,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CheckSuite {
+    id: u64,
+    status: String,
+    head_sha: String,
+    check_runs_url: String,
+    app: App,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct App {
+    id: u64,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Repo {
+    clone_url: String,
+}
+
+mod filters {
+    use super::handlers;
+    use warp::Filter;
+    use super::Event;
+
+    // events listens for github events
+    pub fn events() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::post()
+            .and(json_body())
+            .and_then(handlers::event)
+    }
+
+    // assert body is json and within size limit
+    fn json_body() -> impl Filter<Extract = (Event,), Error = warp::Rejection> + Clone {
+        warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+    }
+}
+
+mod handlers {
+    use warp::http::StatusCode;
+    use super::Event;
+    use std::error::Error;
+    use std::convert::Infallible;
+
+    // handle github event payload
+    pub async fn event(event: Event) -> Result<impl warp::Reply, Infallible> {
+
+        // route event based on action
+        match event.action.as_str() {
+
+            "requested" =>  Ok(StatusCode::OK),
+            "rerequested" =>  Ok(StatusCode::OK),
+            "created" =>  Ok(StatusCode::OK),
+            _ => Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use super::*;
+    use warp::http::StatusCode;
+    use warp::test::request;
+
+    // read test github json into string
+    // only for tests
+    fn get_payload() -> String {
+        fs::read_to_string("test_github_payload.json").expect("unable to read file to string")
+    }
+
+    #[tokio::test]
+    async fn test_events() {
+
+        let filters = filters::events();
+
+        let payload = get_payload(); 
+
+        let resp = warp::test::request()
+            .method("POST")
+            .body(&payload.as_bytes())
+            .reply(&filters)
+            .await;
+        
+        assert_eq!(resp.status(), StatusCode::OK)
+    }
+}
