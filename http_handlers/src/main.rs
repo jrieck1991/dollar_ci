@@ -1,8 +1,8 @@
+use git2::Repository;
 use serde::{Deserialize, Serialize};
+use serde_json::*;
 use time::Instant;
 use warp::Filter;
-use git2::Repository;
-use serde_json::*;
 
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{encode, EncodingKey, Header};
@@ -11,9 +11,10 @@ mod handlers;
 
 #[tokio::main]
 async fn main() {
-    //warp::serve(requested()).run(([0, 0, 0, 0], 80)).await;
+    warp::serve(handlers::filters::events())
+        .run(([0, 0, 0, 0], 80))
+        .await;
 }
-
 
 // create jwt from pem
 //fn get_jwt(pem_str: String) -> Result<String, Error> {
@@ -106,7 +107,6 @@ async fn check_run_complete(name: String, url: String, success: bool) {
 fn run_check(head_sha: String) -> bool {
     true
 }
-
 
 // listen for 'check_suite' of type 'requested', this means new code is pushed to a repo
 // 'rerequested' means the user manually requested a re run of the check
