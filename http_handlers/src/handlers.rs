@@ -34,12 +34,7 @@ pub mod filters {
 
     // events listens for github events
     pub fn events() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        warp::post().and(json_body()).and_then(handlers::event)
-    }
-
-    // assert body is json and within size limit
-    fn json_body() -> impl Filter<Extract = (Event,), Error = warp::Rejection> + Clone {
-        warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+        warp::post().and(warp::body::json()).and_then(handlers::event)
     }
 }
 
