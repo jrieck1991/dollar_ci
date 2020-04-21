@@ -19,6 +19,7 @@ pub struct CheckSuite {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct App {
     id: u64,
+    name: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -29,36 +30,115 @@ pub struct Repo {
 // http route filters
 pub mod filters {
     use super::handlers;
-    use super::Event;
+
     use warp::Filter;
 
     // events listens for github events
     pub fn events() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        warp::post().and(json_body()).and_then(handlers::event)
-    }
-
-    // assert body is json and within size limit
-    fn json_body() -> impl Filter<Extract = (Event,), Error = warp::Rejection> + Clone {
-        warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+        warp::post()
+            .and(warp::body::json())
+            .and_then(handlers::event)
     }
 }
 
 // handlers handle github event payloads
 mod handlers {
+    use super::client;
     use super::Event;
+
     use std::convert::Infallible;
     use warp::http::StatusCode;
 
     // handle github event payload
     pub async fn event(event: Event) -> Result<impl warp::Reply, Infallible> {
-
         // route event based on action
         match event.action.as_str() {
-            "requested" => Ok(StatusCode::OK), // create check run
-            "rerequested" => Ok(StatusCode::OK), // create check run
-            "created" => Ok(StatusCode::OK), // update check run to in progress
+            "requested" => {
+                client::check_run_create(
+                    event.check_suite.app.name,
+                    event.check_suite.head_sha,
+                    event.check_suite.check_runs_url,
+                )
+                .await;
+                Ok(StatusCode::OK)
+            }
+            "rerequested" => {
+                client::check_run_create(
+                    event.check_suite.app.name,
+                    event.check_suite.head_sha,
+                    event.check_suite.check_runs_url,
+                )
+                .await;
+                Ok(StatusCode::OK)
+            }
+            "created" => {
+                client::check_run_start(
+                    event.check_suite.app.name,
+                    event.check_suite.check_runs_url,
+                )
+                .await;
+                Ok(StatusCode::OK)
+            }
             _ => Ok(StatusCode::BAD_REQUEST),
         }
+    }
+}
+
+// http client
+pub mod client {
+
+    use serde_json::*;
+    use time::Instant;
+
+    // tell github to create 'check_run'
+    pub async fn check_run_create(name: String, head_sha: String, url: String) {
+        // init http client
+        let client = reqwest::Client::new();
+
+        // create body
+        let body = json!({"name": name,"head_sha": head_sha});
+
+        // send post
+        match client.post(&url).json(&body).send().await {
+            Ok(res) => println!("check_run_create status_code: {}", res.status()),
+            Err(e) => println!("check_run_create error: {}", e),
+        };
+    }
+
+    // mark 'check_run' as 'in_progress'
+    pub async fn check_run_start(name: String, url: String) {
+        // init http client
+        let client = reqwest::Client::new();
+
+        // create body
+        let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
+
+        // send post
+        match client.post(&url).json(&body).send().await {
+            Ok(res) => println!("check_run_start status_code: {}", res.status()),
+            Err(e) => println!("check_run_start error: {}", e),
+        };
+    }
+
+    // mark 'check_run' as 'complete' with either a fail or pass
+    pub async fn check_run_complete(name: String, url: String, success: bool) {
+        // init http client
+        let client = reqwest::Client::new();
+
+        // define success param
+        let mut conclusion = String::from("success");
+        if !success {
+            conclusion = String::from("failure");
+        };
+
+        // create body
+        let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
+
+        // send post
+        match client.post(&url).json(&body).send().await {
+            Ok(res) => println!("check_run_complete status_code: {}", res.status()),
+            Err(e) => println!("check_run_complete error: {}", e),
+        };
     }
 }
 
@@ -67,7 +147,6 @@ mod tests {
     use super::filters;
     use std::fs;
     use warp::http::StatusCode;
-    use warp::test::request;
 
     // read test github json into string
     // only for tests
