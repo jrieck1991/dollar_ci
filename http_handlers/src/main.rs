@@ -1,12 +1,3 @@
-use git2::Repository;
-use serde::{Deserialize, Serialize};
-use serde_json::*;
-use time::Instant;
-use warp::Filter;
-
-use jsonwebtoken::errors::ErrorKind;
-use jsonwebtoken::{encode, EncodingKey, Header};
-
 mod handlers;
 
 #[tokio::main]
@@ -40,7 +31,6 @@ async fn main() {
 //        Err(e) => Err(e),
 //    };
 //}
-
 
 // clone head_sha of git branch
 // requires token of type 'x-access-token'
