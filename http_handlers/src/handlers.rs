@@ -144,39 +144,35 @@ mod client {
 
 // JWT formation module
 mod jwt {
-    use jsonwebtoken::{encode, Header, Algorithm, EncodingKey}; 
+    use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
-       sub: String,
-       company: String,
-       exp: u64,
+        sub: String,
+        exp: u64,
     }
 
     // create jwt from pem file
-    fn create(pem_str: String) -> Result<String, Error> {
+    fn create(name: String, pem_str: String) -> String {
 
         // define claims
         let claims = Claims {
-            sub: String::from("dollar-ci"),
-            company: String::from("dollar-ci"),
+            sub: name,
             exp: 10000000000,
         };
-    
+
         // setup header
         let mut header = Header::default();
         header.alg = Algorithm::RS256;
-    
+
         // encode and receive token that can be used in http headers
-        let token = match encode(
+        // panic if err, TODO: change this
+        let token = encode(
             &header,
             &claims,
             &EncodingKey::from_secret(pem_str.as_bytes()),
-        ) {
-            Ok(t) => Ok(t),
-            Err(e) => Err(e),
-        };
+        )?;
     }
 }
 
