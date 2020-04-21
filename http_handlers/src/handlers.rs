@@ -85,7 +85,7 @@ mod handlers {
 }
 
 // http client
-pub mod client {
+mod client {
 
     use serde_json::*;
     use time::Instant;
@@ -138,6 +138,44 @@ pub mod client {
         match client.post(&url).json(&body).send().await {
             Ok(res) => println!("check_run_complete status_code: {}", res.status()),
             Err(e) => println!("check_run_complete error: {}", e),
+        };
+    }
+}
+
+// JWT formation module
+mod jwt {
+    use jsonwebtoken::{encode, Header, Algorithm, EncodingKey}; 
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Claims {
+       sub: String,
+       company: String,
+       exp: u64,
+    }
+
+    // create jwt from pem file
+    fn create(pem_str: String) -> Result<String, Error> {
+
+        // define claims
+        let claims = Claims {
+            sub: String::from("dollar-ci"),
+            company: String::from("dollar-ci"),
+            exp: 10000000000,
+        };
+    
+        // setup header
+        let mut header = Header::default();
+        header.alg = Algorithm::RS256;
+    
+        // encode and receive token that can be used in http headers
+        let token = match encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(pem_str.as_bytes()),
+        ) {
+            Ok(t) => Ok(t),
+            Err(e) => Err(e),
         };
     }
 }

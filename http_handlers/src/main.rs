@@ -7,31 +7,6 @@ async fn main() {
         .await;
 }
 
-// create jwt from pem
-//fn get_jwt(pem_str: String) -> Result<String, Error> {
-//    // define claims
-//    let my_claims = Claims {
-//        sub: "dollar-ci".to_owned(),
-//        company: "dollar-ci".to_owned(),
-//        exp: 10000000000,
-//    };
-//
-//    // setup header
-//    let mut header = Header::default();
-//    header.kid = Some("signing_key".to_owned());
-//    header.alg = Algorithm::RS256;
-//
-//    // encode and receive token that can be used in http headers
-//    let token = match encode(
-//        &header,
-//        &my_claims,
-//        &EncodingKey::from_secret(pem_str.as_bytes()),
-//    ) {
-//        Ok(t) => Ok(t),
-//        Err(e) => Err(e),
-//    };
-//}
-
 // clone head_sha of git branch
 // requires token of type 'x-access-token'
 // path is the repository path
