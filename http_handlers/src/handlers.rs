@@ -173,11 +173,7 @@ mod jwt {
         };
 
         // encode token that can be used in http headers
-        match encode(
-            &header,
-            &claims,
-            &key, 
-        ) {
+        match encode(&header, &claims, &key) {
             Ok(token) => return token,
             Err(e) => panic!("jwt::create encode error: {}", e),
         };
