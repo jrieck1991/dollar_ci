@@ -119,16 +119,22 @@ mod handlers {
 // http client
 mod client {
 
+    use super::jwt;
     use super::HandlersErr;
     use serde_json::*;
     use time::Instant;
-    use super::jwt;
 
     // tell github to create 'check_run'
-    pub async fn check_run_create(name: String, head_sha: String, url: String) -> Option<HandlersErr> {
-
+    pub async fn check_run_create(
+        name: String,
+        head_sha: String,
+        url: String,
+    ) -> Option<HandlersErr> {
         // create jwt token
-        let token = match jwt::create(&name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+        let token = match jwt::create(
+            &name,
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+        ) {
             Ok(token) => token,
             Err(e) => return Some(e),
         };
@@ -140,9 +146,15 @@ mod client {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        match client.post(&url).json(&body).bearer_auth(token).send().await {
+        match client
+            .post(&url)
+            .json(&body)
+            .bearer_auth(token)
+            .send()
+            .await
+        {
             Ok(res) => println!("check_run_create status_code: {}", res.status()),
-            Err(e) => return Some(HandlersErr::Client(e)), 
+            Err(e) => return Some(HandlersErr::Client(e)),
         };
 
         None
@@ -150,11 +162,13 @@ mod client {
 
     // mark 'check_run' as 'in_progress'
     pub async fn check_run_start(name: String, url: String) -> Option<HandlersErr> {
-
         // create jwt token
-        let token = match jwt::create(&name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+        let token = match jwt::create(
+            &name,
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+        ) {
             Ok(token) => token,
-            Err(e) => return Some(e), 
+            Err(e) => return Some(e),
         };
 
         // init http client
@@ -164,7 +178,13 @@ mod client {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client.post(&url).json(&body).bearer_auth(token).send().await {
+        match client
+            .post(&url)
+            .json(&body)
+            .bearer_auth(token)
+            .send()
+            .await
+        {
             Ok(res) => println!("check_run_start status_code: {}", res.status()),
             Err(e) => return Some(HandlersErr::Client(e)),
         };
@@ -173,10 +193,16 @@ mod client {
     }
 
     // mark 'check_run' as 'complete' with either a fail or pass
-    pub async fn check_run_complete(name: String, url: String, success: bool) -> Option<HandlersErr> {
-
+    pub async fn check_run_complete(
+        name: String,
+        url: String,
+        success: bool,
+    ) -> Option<HandlersErr> {
         // create jwt token
-        let token = match jwt::create(&name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+        let token = match jwt::create(
+            &name,
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+        ) {
             Ok(token) => token,
             Err(e) => return Some(e),
         };
@@ -194,7 +220,13 @@ mod client {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client.post(&url).json(&body).bearer_auth(token).send().await {
+        match client
+            .post(&url)
+            .json(&body)
+            .bearer_auth(token)
+            .send()
+            .await
+        {
             Ok(res) => println!("check_run_complete status_code: {}", res.status()),
             Err(e) => return Some(HandlersErr::Client(e)),
         };
@@ -205,10 +237,10 @@ mod client {
 
 // JWT formation module
 mod jwt {
+    use super::HandlersErr;
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::fs;
-    use super::HandlersErr;
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
@@ -219,7 +251,6 @@ mod jwt {
 
     // create jwt from pem file
     pub fn create(name: &str, pem_path: String) -> Result<String, HandlersErr> {
-
         // read pem file into string var
         let pem = match fs::read_to_string(pem_path) {
             Ok(pem) => pem,
@@ -242,7 +273,7 @@ mod jwt {
         // encode token that can be used in http headers
         match encode(&header, &claims, &key) {
             Ok(token) => Ok(token),
-            Err(e) => Err(HandlersErr::Jwt(e)), 
+            Err(e) => Err(HandlersErr::Jwt(e)),
         }
     }
 }
@@ -256,9 +287,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_events() {
-
         // get test payload from file
-        let payload = fs::read_to_string("test_github_payload.json").expect("unable to read file to string");
+        let payload =
+            fs::read_to_string("test_github_payload.json").expect("unable to read file to string");
 
         // send request
         let resp = warp::test::request()
@@ -273,8 +304,10 @@ mod tests {
 
     #[test]
     fn jwt_create() {
-
-        match jwt::create("unit", String::from("../dollar-ci.2020-04-18.private-key.pem")) {
+        match jwt::create(
+            "unit",
+            String::from("../dollar-ci.2020-04-18.private-key.pem"),
+        ) {
             Ok(token) => println!("{}", token),
             Err(e) => panic!(e),
         }
