@@ -155,7 +155,7 @@ mod jwt {
     }
 
     // create jwt from pem file
-    pub fn create(name: String, pem_str: String) -> String {
+    pub fn create(name: String, pem_str: String) -> Result<String, jsonwebtoken::errors::Error> {
         // define claims
         let claims = Claims {
             sub: name,
@@ -169,14 +169,14 @@ mod jwt {
         // create rsa pem from file
         let key = match EncodingKey::from_rsa_pem(pem_str.as_bytes()) {
             Ok(key) => key,
-            Err(e) => panic!("jwt::create from_rsa_pem error: {}", e),
+            Err(e) => return Err(e),
         };
 
         // encode token that can be used in http headers
         match encode(&header, &claims, &key) {
-            Ok(token) => return token,
-            Err(e) => panic!("jwt::create encode error: {}", e),
-        };
+            Ok(token) => Ok(token),
+            Err(e) => Err(e),
+        }
     }
 }
 
@@ -211,8 +211,12 @@ mod tests {
 
     #[test]
     fn jwt_create() {
+
         let pem = read_file(String::from("../dollar-ci.2020-04-18.private-key.pem"));
-        let key = jwt::create(String::from("unit"), pem);
-        println!("{}", key);
+
+        match jwt::create(String::from("unit"), pem) {
+            Ok(token) => println!("{}", token),
+            Err(e) => panic!(e),
+        }
     }
 }
