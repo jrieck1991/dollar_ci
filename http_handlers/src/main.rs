@@ -28,7 +28,7 @@ async fn main() {
 // read check config in root of repo
 // run defined tests
 // return success bool
-fn run_check(head_sha: String) -> bool {
+fn run_check(_head_sha: String) -> bool {
     true
 }
 
