@@ -17,7 +17,6 @@ ami: compile
 	PACKER_LOG=1 packer build ./build/http_handlers.json 
 
 # compile rust code for musl
-# openssl is tricky
 compile:
 	pushd http_handlers \
 	&& OPENSSL_LIB_DIR=/usr/local/opt/openssl/lib \
