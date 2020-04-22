@@ -154,7 +154,7 @@ mod jwt {
     }
 
     // create jwt from pem file
-    fn create(name: String, pem_str: String) -> String {
+    pub fn create(name: String, pem_str: String) -> String {
 
         // define claims
         let claims = Claims {
@@ -167,18 +167,21 @@ mod jwt {
         header.alg = Algorithm::RS256;
 
         // encode and receive token that can be used in http headers
-        // panic if err, TODO: change this
-        let token = encode(
+        match encode(
             &header,
             &claims,
             &EncodingKey::from_secret(pem_str.as_bytes()),
-        )?;
+        ) {
+            Ok(token) => return token,
+            Err(e) => panic!("jwt encode error: {}", e),
+        };
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::filters;
+    use super::jwt;
     use std::fs;
     use warp::http::StatusCode;
 
@@ -202,5 +205,11 @@ mod tests {
 
         // verify status code
         assert_eq!(resp.status(), StatusCode::OK)
+    }
+
+    #[test]
+    fn jwt_create() {
+        let key = jwt::create(String::from("unit"), String::from("test.pem"));
+        println!("{}", key);
     }
 }
