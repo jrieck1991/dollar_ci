@@ -28,6 +28,7 @@ pub struct Repo {
 }
 
 // Error wrapper for the project
+#[derive(Debug)]
 pub enum HandlersErr {
     Json(serde_json::Error),
     Client(reqwest::Error),
