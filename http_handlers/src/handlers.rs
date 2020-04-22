@@ -155,7 +155,6 @@ mod jwt {
 
     // create jwt from pem file
     pub fn create(name: String, pem_str: String) -> String {
-
         // define claims
         let claims = Claims {
             sub: name,
