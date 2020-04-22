@@ -85,7 +85,7 @@ mod handlers {
 }
 
 // http client
-pub mod client {
+mod client {
 
     use serde_json::*;
     use time::Instant;
@@ -142,22 +142,61 @@ pub mod client {
     }
 }
 
+// JWT formation module
+mod jwt {
+    use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Claims {
+        sub: String,
+        company: String,
+        exp: usize,
+    }
+
+    // create jwt from pem file
+    pub fn create(name: String, pem_str: String) -> Result<String, jsonwebtoken::errors::Error> {
+        // define claims
+        let claims = Claims {
+            sub: name,
+            company: String::from("dollar-ci"),
+            exp: 10000000000,
+        };
+
+        // setup header
+        let header = Header::new(Algorithm::RS256);
+
+        // create rsa pem from file
+        let key = match EncodingKey::from_rsa_pem(pem_str.as_bytes()) {
+            Ok(key) => key,
+            Err(e) => return Err(e),
+        };
+
+        // encode token that can be used in http headers
+        match encode(&header, &claims, &key) {
+            Ok(token) => Ok(token),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::filters;
+    use super::jwt;
     use std::fs;
     use warp::http::StatusCode;
 
     // read test github json into string
     // only for tests
-    fn get_payload() -> String {
-        fs::read_to_string("test_github_payload.json").expect("unable to read file to string")
+    fn read_file(file_name: String) -> String {
+        fs::read_to_string(file_name).expect("unable to read file to string")
     }
 
     #[tokio::test]
     async fn test_events() {
         // get test payload from file
-        let payload = get_payload();
+        let payload = read_file(String::from("test_github_payload.json"));
 
         // send request
         let resp = warp::test::request()
@@ -168,5 +207,16 @@ mod tests {
 
         // verify status code
         assert_eq!(resp.status(), StatusCode::OK)
+    }
+
+    #[test]
+    fn jwt_create() {
+
+        let pem = read_file(String::from("../dollar-ci.2020-04-18.private-key.pem"));
+
+        match jwt::create(String::from("unit"), pem) {
+            Ok(token) => println!("{}", token),
+            Err(e) => panic!(e),
+        }
     }
 }
