@@ -20,7 +20,7 @@
           ],
           "most_recent": true
         },
-        "instance_type": "t2.micro",
+        "instance_type": "t2.nano",
         "ssh_username": "ec2-user",
         "ami_name": "http_handlers_{{timestamp}}",
         "ami_users": "766822175569"
