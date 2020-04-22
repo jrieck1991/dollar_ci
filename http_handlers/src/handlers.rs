@@ -150,7 +150,8 @@ mod jwt {
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
         sub: String,
-        exp: u64,
+        company: String,
+        exp: usize,
     }
 
     // create jwt from pem file
@@ -158,21 +159,27 @@ mod jwt {
         // define claims
         let claims = Claims {
             sub: name,
+            company: String::from("dollar-ci"),
             exp: 10000000000,
         };
 
         // setup header
-        let mut header = Header::default();
-        header.alg = Algorithm::RS256;
+        let header = Header::new(Algorithm::RS256);
 
-        // encode and receive token that can be used in http headers
+        // create rsa pem from file
+        let key = match EncodingKey::from_rsa_pem(pem_str.as_bytes()) {
+            Ok(key) => key,
+            Err(e) => panic!("jwt::create from_rsa_pem error: {}", e),
+        };
+
+        // encode token that can be used in http headers
         match encode(
             &header,
             &claims,
-            &EncodingKey::from_secret(pem_str.as_bytes()),
+            &key, 
         ) {
             Ok(token) => return token,
-            Err(e) => panic!("jwt encode error: {}", e),
+            Err(e) => panic!("jwt::create encode error: {}", e),
         };
     }
 }
@@ -186,14 +193,14 @@ mod tests {
 
     // read test github json into string
     // only for tests
-    fn get_payload() -> String {
-        fs::read_to_string("test_github_payload.json").expect("unable to read file to string")
+    fn read_file(file_name: String) -> String {
+        fs::read_to_string(file_name).expect("unable to read file to string")
     }
 
     #[tokio::test]
     async fn test_events() {
         // get test payload from file
-        let payload = get_payload();
+        let payload = read_file(String::from("test_github_payload.json"));
 
         // send request
         let resp = warp::test::request()
@@ -208,7 +215,8 @@ mod tests {
 
     #[test]
     fn jwt_create() {
-        let key = jwt::create(String::from("unit"), String::from("test.pem"));
+        let pem = read_file(String::from("../dollar-ci.2020-04-18.private-key.pem"));
+        let key = jwt::create(String::from("unit"), pem);
         println!("{}", key);
     }
 }
