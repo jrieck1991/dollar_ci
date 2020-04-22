@@ -89,9 +89,17 @@ mod client {
 
     use serde_json::*;
     use time::Instant;
+    use super::jwt;
 
     // tell github to create 'check_run'
     pub async fn check_run_create(name: String, head_sha: String, url: String) {
+
+        // create jwt token
+        let token = match jwt::create(name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+            Ok(token) => token,
+            Err(e) => panic!("jwt::create error: {}", e),
+        };
+
         // init http client
         let client = reqwest::Client::new();
 
@@ -99,7 +107,7 @@ mod client {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        match client.post(&url).json(&body).send().await {
+        match client.post(&url).json(&body).bearer_auth(token).send().await {
             Ok(res) => println!("check_run_create status_code: {}", res.status()),
             Err(e) => println!("check_run_create error: {}", e),
         };
@@ -107,6 +115,13 @@ mod client {
 
     // mark 'check_run' as 'in_progress'
     pub async fn check_run_start(name: String, url: String) {
+
+        // create jwt token
+        let token = match jwt::create(name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+            Ok(token) => token,
+            Err(e) => panic!("jwt::create error: {}", e),
+        };
+
         // init http client
         let client = reqwest::Client::new();
 
@@ -114,7 +129,7 @@ mod client {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client.post(&url).json(&body).send().await {
+        match client.post(&url).json(&body).bearer_auth(token).send().await {
             Ok(res) => println!("check_run_start status_code: {}", res.status()),
             Err(e) => println!("check_run_start error: {}", e),
         };
@@ -122,6 +137,13 @@ mod client {
 
     // mark 'check_run' as 'complete' with either a fail or pass
     pub async fn check_run_complete(name: String, url: String, success: bool) {
+
+        // create jwt token
+        let token = match jwt::create(name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+            Ok(token) => token,
+            Err(e) => panic!("jwt::create error: {}", e),
+        };
+
         // init http client
         let client = reqwest::Client::new();
 
@@ -135,7 +157,7 @@ mod client {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client.post(&url).json(&body).send().await {
+        match client.post(&url).json(&body).bearer_auth(token).send().await {
             Ok(res) => println!("check_run_complete status_code: {}", res.status()),
             Err(e) => println!("check_run_complete error: {}", e),
         };
@@ -146,6 +168,7 @@ mod client {
 mod jwt {
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
+    use std::fs;
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
@@ -155,7 +178,11 @@ mod jwt {
     }
 
     // create jwt from pem file
-    pub fn create(name: String, pem_str: String) -> Result<String, jsonwebtoken::errors::Error> {
+    pub fn create(name: String, pem_path: String) -> Result<String, jsonwebtoken::errors::Error> {
+
+        // read pem file into string var
+        let pem = fs::read_to_string(pem_path)?;
+
         // define claims
         let claims = Claims {
             sub: name,
@@ -167,15 +194,12 @@ mod jwt {
         let header = Header::new(Algorithm::RS256);
 
         // create rsa pem from file
-        let key = match EncodingKey::from_rsa_pem(pem_str.as_bytes()) {
-            Ok(key) => key,
-            Err(e) => return Err(e),
-        };
+        let key = EncodingKey::from_rsa_pem(pem.as_bytes())?;
 
         // encode token that can be used in http headers
         match encode(&header, &claims, &key) {
             Ok(token) => Ok(token),
-            Err(e) => Err(e),
+            Err(e) => Err(e)
         }
     }
 }
@@ -187,16 +211,11 @@ mod tests {
     use std::fs;
     use warp::http::StatusCode;
 
-    // read test github json into string
-    // only for tests
-    fn read_file(file_name: String) -> String {
-        fs::read_to_string(file_name).expect("unable to read file to string")
-    }
-
     #[tokio::test]
     async fn test_events() {
+
         // get test payload from file
-        let payload = read_file(String::from("test_github_payload.json"));
+        let payload = fs::read_to_string("test_github_payload.json").expect("unable to read file to string");
 
         // send request
         let resp = warp::test::request()
@@ -212,9 +231,7 @@ mod tests {
     #[test]
     fn jwt_create() {
 
-        let pem = read_file(String::from("../dollar-ci.2020-04-18.private-key.pem"));
-
-        match jwt::create(String::from("unit"), pem) {
+        match jwt::create(String::from("unit"), String::from("../dollar-ci.2020-04-18.private-key.pem")) {
             Ok(token) => println!("{}", token),
             Err(e) => panic!(e),
         }
