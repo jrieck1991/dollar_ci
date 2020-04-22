@@ -27,6 +27,38 @@ pub struct Repo {
     clone_url: String,
 }
 
+// Error wrapper for the project
+pub enum HandlersErr {
+    Json(serde_json::Error),
+    Client(reqwest::Error),
+    Jwt(jsonwebtoken::errors::Error),
+    Io(std::io::Error),
+}
+
+impl From<reqwest::Error> for HandlersErr {
+    fn from(err: reqwest::Error) -> HandlersErr {
+        HandlersErr::Client(err)
+    }
+}
+
+impl From<serde_json::Error> for HandlersErr {
+    fn from(err: serde_json::Error) -> HandlersErr {
+        HandlersErr::Json(err)
+    }
+}
+
+impl From<jsonwebtoken::errors::Error> for HandlersErr {
+    fn from(err: jsonwebtoken::errors::Error) -> HandlersErr {
+        HandlersErr::Jwt(err)
+    }
+}
+
+impl From<std::io::Error> for HandlersErr {
+    fn from(err: std::io::Error) -> HandlersErr {
+        HandlersErr::Io(err)
+    }
+}
+
 // http route filters
 pub mod filters {
     use super::handlers;
@@ -87,17 +119,18 @@ mod handlers {
 // http client
 mod client {
 
+    use super::HandlersErr;
     use serde_json::*;
     use time::Instant;
     use super::jwt;
 
     // tell github to create 'check_run'
-    pub async fn check_run_create(name: String, head_sha: String, url: String) {
+    pub async fn check_run_create(name: String, head_sha: String, url: String) -> Option<HandlersErr> {
 
         // create jwt token
-        let token = match jwt::create(name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+        let token = match jwt::create(&name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
             Ok(token) => token,
-            Err(e) => panic!("jwt::create error: {}", e),
+            Err(e) => return Some(e),
         };
 
         // init http client
@@ -109,17 +142,19 @@ mod client {
         // send post
         match client.post(&url).json(&body).bearer_auth(token).send().await {
             Ok(res) => println!("check_run_create status_code: {}", res.status()),
-            Err(e) => println!("check_run_create error: {}", e),
+            Err(e) => return Some(HandlersErr::Client(e)), 
         };
+
+        None
     }
 
     // mark 'check_run' as 'in_progress'
-    pub async fn check_run_start(name: String, url: String) {
+    pub async fn check_run_start(name: String, url: String) -> Option<HandlersErr> {
 
         // create jwt token
-        let token = match jwt::create(name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+        let token = match jwt::create(&name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
             Ok(token) => token,
-            Err(e) => panic!("jwt::create error: {}", e),
+            Err(e) => return Some(e), 
         };
 
         // init http client
@@ -131,17 +166,19 @@ mod client {
         // send post
         match client.post(&url).json(&body).bearer_auth(token).send().await {
             Ok(res) => println!("check_run_start status_code: {}", res.status()),
-            Err(e) => println!("check_run_start error: {}", e),
+            Err(e) => return Some(HandlersErr::Client(e)),
         };
+
+        None
     }
 
     // mark 'check_run' as 'complete' with either a fail or pass
-    pub async fn check_run_complete(name: String, url: String, success: bool) {
+    pub async fn check_run_complete(name: String, url: String, success: bool) -> Option<HandlersErr> {
 
         // create jwt token
-        let token = match jwt::create(name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
+        let token = match jwt::create(&name, String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")) {
             Ok(token) => token,
-            Err(e) => panic!("jwt::create error: {}", e),
+            Err(e) => return Some(e),
         };
 
         // init http client
@@ -159,8 +196,10 @@ mod client {
         // send post
         match client.post(&url).json(&body).bearer_auth(token).send().await {
             Ok(res) => println!("check_run_complete status_code: {}", res.status()),
-            Err(e) => println!("check_run_complete error: {}", e),
+            Err(e) => return Some(HandlersErr::Client(e)),
         };
+
+        None
     }
 }
 
@@ -169,6 +208,7 @@ mod jwt {
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::fs;
+    use super::HandlersErr;
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
@@ -178,14 +218,17 @@ mod jwt {
     }
 
     // create jwt from pem file
-    pub fn create(name: String, pem_path: String) -> Result<String, jsonwebtoken::errors::Error> {
+    pub fn create(name: &str, pem_path: String) -> Result<String, HandlersErr> {
 
         // read pem file into string var
-        let pem = fs::read_to_string(pem_path)?;
+        let pem = match fs::read_to_string(pem_path) {
+            Ok(pem) => pem,
+            Err(e) => return Err(HandlersErr::Io(e)),
+        };
 
         // define claims
         let claims = Claims {
-            sub: name,
+            sub: name.to_string(),
             company: String::from("dollar-ci"),
             exp: 10000000000,
         };
@@ -199,7 +242,7 @@ mod jwt {
         // encode token that can be used in http headers
         match encode(&header, &claims, &key) {
             Ok(token) => Ok(token),
-            Err(e) => Err(e)
+            Err(e) => Err(HandlersErr::Jwt(e)), 
         }
     }
 }
@@ -231,7 +274,7 @@ mod tests {
     #[test]
     fn jwt_create() {
 
-        match jwt::create(String::from("unit"), String::from("../dollar-ci.2020-04-18.private-key.pem")) {
+        match jwt::create("unit", String::from("../dollar-ci.2020-04-18.private-key.pem")) {
             Ok(token) => println!("{}", token),
             Err(e) => panic!(e),
         }
