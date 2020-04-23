@@ -307,7 +307,7 @@ mod tests {
     fn jwt_create() {
         match jwt::create(
             "unit",
-            String::from("../dollar-ci.2020-04-18.private-key.pem"),
+            String::from("../build/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(token) => println!("{}", token),
             Err(e) => panic!(e),

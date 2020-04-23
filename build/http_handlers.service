@@ -1,0 +1,10 @@
+[Unit]
+Description=http_handlers
+
+[Service]
+Type=simple
+User=root
+ExecStart=/home/ec2-user/http_handlers
+
+[Install]
+WantedBy=multi-user.target

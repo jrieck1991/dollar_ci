@@ -38,7 +38,7 @@ resource "aws_launch_template" "main" {
 
   vpc_security_group_ids = [aws_security_group.asg.id]
 
-  user_data = filebase64("${path.module}/provision.sh")
+  user_data = filebase64("${path.module}/runtime.sh")
 }
 
 // autoscaling group of ec2 spot instances
