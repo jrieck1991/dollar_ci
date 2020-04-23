@@ -29,13 +29,22 @@
     "provisioners": [
       {
         "type": "file",
+        "source": "build/http_handlers.service",
+        "destination": "/tmp/http_handlers.service"
+      },
+      {
+        "type": "file",
         "source": "http_handlers/target/x86_64-unknown-linux-musl/release/http_handlers",
         "destination": "/home/ec2-user/http_handlers"
       },
       {
         "type": "file",
-        "source": "dollar-ci.2020-04-18.private-key.pem",
+        "source": "build/dollar-ci.2020-04-18.private-key.pem",
         "destination": "/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"
+      },
+      {
+        "type": "shell",
+        "script": "build/provision.sh"
       }
     ]
 }  

@@ -2,6 +2,8 @@ mod handlers;
 
 #[tokio::main]
 async fn main() {
+
+    // start http server
     warp::serve(handlers::filters::events())
         .run(([0, 0, 0, 0], 80))
         .await;
