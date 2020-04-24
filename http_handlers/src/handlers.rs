@@ -179,7 +179,10 @@ mod client {
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(token) => token,
-            Err(e) => return Some(e),
+            Err(e) => {
+                error!("jwt::create error: {:?}", e);
+                return Some(e)
+            }
         };
 
         // init http client
