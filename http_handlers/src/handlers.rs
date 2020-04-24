@@ -158,10 +158,7 @@ mod client {
         // get auth token
         let token = match get_installation_token(name, installation_id) {
             Ok(token) => token,
-            Err(e) => {
-                error!("get_installation_token error: {}", e);
-                return Some(e);
-            }
+            Err(e) => return Some(e),
         };
 
         // init http client
@@ -197,10 +194,7 @@ mod client {
         // get auth token
         let token = match get_installation_token(name, installation_id) {
             Ok(token) => token,
-            Err(e) => {
-                error!("get_installation_token error: {}", e);
-                return Some(e);
-            }
+            Err(e) => return Some(e),
         };
 
         // init http client
@@ -237,10 +231,7 @@ mod client {
         // get auth token
         let token = match get_installation_token(name, installation_id) {
             Ok(token) => token,
-            Err(e) => {
-                error!("get_installation_token error: {}", e);
-                return Some(e);
-            }
+            Err(e) => return Some(e),
         };
 
         // init http client
@@ -284,10 +275,7 @@ mod client {
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Err(e);
-            }
+            Err(e) => return Err(e),
         };
 
         // init http client
@@ -302,19 +290,12 @@ mod client {
         // send post
         let res = match client.post(&url).bearer_auth(token).send().await {
             Ok(res) => res,
-            Err(e) => {
-                error!("get_installation_token error: {}", e);
-                Err(HandlersErr::Client(e))
-            }
+            Err(e) => return Err(HandlersErr::Client(e)),
         };
 
         // get installation token from body
         match res.json::<InstallToken>() {
-            Ok(body) => Ok(body),
-            Err(e) => {
-                error!("get_installation_token error: {}", e);
-                Err(HandlersErr::Client(e))
-            }
+            Ok(body) => Ok(&body.token),
         }
     }
 }
