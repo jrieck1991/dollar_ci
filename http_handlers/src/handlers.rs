@@ -139,7 +139,13 @@ mod client {
     use super::jwt;
     use super::HandlersErr;
     use serde_json::*;
+    use serde::{Deserialize, Serialize};
     use time::Instant;
+
+    #[derive(Deserialize, Serialize, Debug)]
+    struct InstallToken {
+        token: String,
+    }
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
