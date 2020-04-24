@@ -7,6 +7,7 @@ pub struct Event {
     action: String,
     check_suite: CheckSuite,
     repository: Repo,
+    installation: Installation,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -27,6 +28,11 @@ pub struct App {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Repo {
     clone_url: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Installation {
+    id: u64,
 }
 
 // Error wrapper for the project
@@ -95,6 +101,7 @@ mod handlers {
                     event.check_suite.app.name,
                     event.check_suite.head_sha,
                     event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
                 .await;
                 Ok(StatusCode::OK)
@@ -104,6 +111,7 @@ mod handlers {
                     event.check_suite.app.name,
                     event.check_suite.head_sha,
                     event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
                 .await;
                 Ok(StatusCode::OK)
@@ -112,6 +120,7 @@ mod handlers {
                 client::check_run_start(
                     event.check_suite.app.name,
                     event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
                 .await;
                 Ok(StatusCode::OK)
@@ -137,6 +146,7 @@ mod client {
         name: String,
         head_sha: String,
         url: String,
+        installation_id: u64,
     ) -> Option<HandlersErr> {
         // create jwt token
         let token = match jwt::create(
@@ -175,7 +185,7 @@ mod client {
     }
 
     // mark 'check_run' as 'in_progress'
-    pub async fn check_run_start(name: String, url: String) -> Option<HandlersErr> {
+    pub async fn check_run_start(name: String, url: String, installation_id: u64) -> Option<HandlersErr> {
         // create jwt token
         let token = match jwt::create(
             &name,
@@ -217,6 +227,7 @@ mod client {
         name: String,
         url: String,
         success: bool,
+        installation_id: u64,
     ) -> Option<HandlersErr> {
         // create jwt token
         let token = match jwt::create(
