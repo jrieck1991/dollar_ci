@@ -101,6 +101,7 @@ mod handlers {
                     event.check_suite.app.name,
                     event.check_suite.head_sha,
                     event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
                 .await;
                 Ok(StatusCode::OK)
@@ -110,6 +111,7 @@ mod handlers {
                     event.check_suite.app.name,
                     event.check_suite.head_sha,
                     event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
                 .await;
                 Ok(StatusCode::OK)
@@ -118,6 +120,7 @@ mod handlers {
                 client::check_run_start(
                     event.check_suite.app.name,
                     event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
                 .await;
                 Ok(StatusCode::OK)
@@ -135,7 +138,7 @@ mod client {
 
     use super::jwt;
     use super::HandlersErr;
-    use serde_json::*;
+    #[macro_use] use serde_json::*;
     use time::Instant;
     use serde::{Deserialize, Serialize};
 
@@ -150,18 +153,14 @@ mod client {
         name: String,
         head_sha: String,
         url: String,
+        installation_id: u64,
     ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+
+        // get token for auth
+        let token = match get_installation_token(name, installation_id) {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
-        };
+            Err(e) => Some(e),
+        }
 
         // init http client
         let client = reqwest::Client::new();
@@ -188,18 +187,7 @@ mod client {
     }
 
     // mark 'check_run' as 'in_progress'
-    pub async fn check_run_start(name: String, url: String) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
-            Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
-        };
+    pub async fn check_run_start(name: String, url: String, installation_id: u64) -> Option<HandlersErr> {
 
         // init http client
         let client = reqwest::Client::new();
@@ -230,6 +218,7 @@ mod client {
         name: String,
         url: String,
         success: bool,
+        installation_id: u64,
     ) -> Option<HandlersErr> {
 
         // init http client
@@ -273,8 +262,8 @@ mod client {
             Ok(token) => token,
             Err(e) => {
                 error!("jwt::create error: {:?}", e);
-                return Err(e)
-            }
+                return Err(e);
+            },
         };
 
         // init http client
@@ -283,31 +272,28 @@ mod client {
         // form url
         let url = format!("https://api.github.com/app/installations/{}/access_tokens", installation_id);
 
+        // send post
         let res = match client
             .post(&url)
             .bearer_auth(token)
             .send()
             .await
             {
-                Ok(res) => {
-                    info!("get_installation_token status_code: {}", res.status());
-                    res
-                }
+                Ok(res) => res,
                 Err(e) => {
                     error!("get_installation_token error: {}", e);
                     Err(HandlersErr::Client(e))
-                }
+                },
             };
         
-        let body = match res.json::<InstallToken>() {
-            Ok(body) => body,
+        // get installation token from body
+        match res.json::<InstallToken>() {
+            Ok(body) => Ok(body),
             Err(e) => {
                 error!("get_installation_token error: {}", e);
                 Err(HandlersErr::Client(e))
             }
-        };
-
-        Ok(body.token)
+        }
     }
 }
 
@@ -329,7 +315,7 @@ mod jwt {
     }
 
     // create jwt from pem file
-    pub fn create(name: &str, pem_path: String) -> Result<String, HandlersErr> {
+    pub fn create(name: &str, pem_path: String) -> Result<&str, HandlersErr> {
         // read pem file into string var
         let pem = match fs::read_to_string(pem_path) {
             Ok(pem) => pem,
