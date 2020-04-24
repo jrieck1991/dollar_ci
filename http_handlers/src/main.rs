@@ -1,7 +1,13 @@
+extern crate pretty_env_logger;
+#[macro_use]
+extern crate log;
+
 mod handlers;
 
 #[tokio::main]
 async fn main() {
+    // init logger
+    pretty_env_logger::init();
 
     // start http server
     warp::serve(handlers::filters::events())
