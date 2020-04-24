@@ -1,4 +1,4 @@
-.PHONY: infra destroy ami
+.PHONY: apply destroy ami
 
 ## AWS targets expect 'AWS_PROFILE' to be set
 
@@ -19,6 +19,7 @@ ami: compile
 # compile rust code for musl
 compile:
 	pushd http_handlers \
+	&& cargo clean \
 	&& OPENSSL_LIB_DIR=/usr/local/opt/openssl/lib \
 	CC_x86_64_unknown_linux_musl=x86_64-linux-musl-gcc \
 	cargo build --release --target=x86_64-unknown-linux-musl && popd
