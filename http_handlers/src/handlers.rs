@@ -16,6 +16,7 @@ pub struct CheckSuite {
     head_sha: String,
     check_runs_url: String,
     app: App,
+    installation: Installation,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -27,6 +28,11 @@ pub struct App {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Repo {
     clone_url: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Installation {
+    id: u64,
 }
 
 // Error wrapper for the project
@@ -131,6 +137,13 @@ mod client {
     use super::HandlersErr;
     use serde_json::*;
     use time::Instant;
+    use serde::{Deserialize, Serialize};
+
+
+    #[derive(Deserialize, Serialize, Debug)]
+    struct InstallToken {
+        token: String,
+    }
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
@@ -157,14 +170,14 @@ mod client {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        match client
+        let res = match client
             .post(&url)
             .json(&body)
             .bearer_auth(token)
             .send()
             .await
         {
-            Ok(res) => info!("check_run_create status_code: {}", res.status()),
+            Ok(res) => res,
             Err(e) => {
                 error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
                 return Some(HandlersErr::Client(e));
@@ -218,17 +231,6 @@ mod client {
         url: String,
         success: bool,
     ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
-            Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
-        };
 
         // init http client
         let client = reqwest::Client::new();
@@ -260,6 +262,53 @@ mod client {
             }
         }
     }
+
+    pub async fn get_installation_token(name: String, installation_id: u64) -> Result<String, HandlersErr> {
+
+        // create jwt token
+        let token = match jwt::create(
+            &name,
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+        ) {
+            Ok(token) => token,
+            Err(e) => {
+                error!("jwt::create error: {:?}", e);
+                return Err(e)
+            }
+        };
+
+        // init http client
+        let client = reqwest::Client::new();
+
+        // form url
+        let url = format!("https://api.github.com/app/installations/{}/access_tokens", installation_id);
+
+        let res = match client
+            .post(&url)
+            .bearer_auth(token)
+            .send()
+            .await
+            {
+                Ok(res) => {
+                    info!("get_installation_token status_code: {}", res.status());
+                    res
+                }
+                Err(e) => {
+                    error!("get_installation_token error: {}", e);
+                    Err(HandlersErr::Client(e))
+                }
+            };
+        
+        let body = match res.json::<InstallToken>() {
+            Ok(body) => body,
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                Err(HandlersErr::Client(e))
+            }
+        };
+
+        Ok(body.token)
+    }
 }
 
 // JWT formation module
@@ -269,9 +318,12 @@ mod jwt {
     use serde::{Deserialize, Serialize};
     use std::fs;
 
+    const APP_ID: u32 = 61447;
+
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
         sub: String,
+        iss: u32,
         company: String,
         exp: usize,
     }
@@ -287,6 +339,7 @@ mod jwt {
         // define claims
         let claims = Claims {
             sub: name.to_string(),
+            iss: APP_ID,
             company: String::from("dollar-ci"),
             exp: 10000000000,
         };
