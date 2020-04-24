@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use log::{debug, info, warn, error};
+use log::{debug, error, info, warn};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Event {
@@ -146,7 +146,7 @@ mod client {
             Ok(token) => token,
             Err(e) => {
                 error!("jwt::create error: {:?}", e);
-                return Some(e)
+                return Some(e);
             }
         };
 
@@ -167,7 +167,7 @@ mod client {
             Ok(res) => info!("check_run_create status_code: {}", res.status()),
             Err(e) => {
                 error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
-                return Some(HandlersErr::Client(e))
+                return Some(HandlersErr::Client(e));
             }
         };
 
@@ -184,7 +184,7 @@ mod client {
             Ok(token) => token,
             Err(e) => {
                 error!("jwt::create error: {:?}", e);
-                return Some(e)
+                return Some(e);
             }
         };
 
@@ -205,7 +205,7 @@ mod client {
             Ok(res) => info!("check_run_start status_code: {}", res.status()),
             Err(e) => {
                 error!("check_run_start error: {}\nrequest_body: {}", e, &body);
-                return Some(HandlersErr::Client(e))
+                return Some(HandlersErr::Client(e));
             }
         };
 
@@ -226,7 +226,7 @@ mod client {
             Ok(token) => token,
             Err(e) => {
                 error!("jwt::create error: {:?}", e);
-                return Some(e)
+                return Some(e);
             }
         };
 
@@ -257,7 +257,7 @@ mod client {
             Err(e) => {
                 error!("check_run_complete error: {}\nrequest_body: {}", e, &body);
                 Some(HandlersErr::Client(e))
-            },
+            }
         }
     }
 }
