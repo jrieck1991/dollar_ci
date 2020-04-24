@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use log::{debug, info, warn, error};
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Event {
     action: String,
@@ -84,6 +86,8 @@ mod handlers {
 
     // handle github event payload
     pub async fn event(event: Event) -> Result<impl warp::Reply, Infallible> {
+        debug!("event received: {:?}", event);
+
         // route event based on action
         match event.action.as_str() {
             "requested" => {
@@ -112,7 +116,10 @@ mod handlers {
                 .await;
                 Ok(StatusCode::OK)
             }
-            _ => Ok(StatusCode::BAD_REQUEST),
+            _ => {
+                warn!("no match for event: {:?}", event);
+                Ok(StatusCode::BAD_REQUEST)
+            }
         }
     }
 }
@@ -154,8 +161,11 @@ mod client {
             .send()
             .await
         {
-            Ok(res) => println!("check_run_create status_code: {}", res.status()),
-            Err(e) => return Some(HandlersErr::Client(e)),
+            Ok(res) => info!("check_run_create status_code: {}", res.status()),
+            Err(e) => {
+                error!("check_run_create_error: {}", e);
+                return Some(HandlersErr::Client(e))
+            }
         };
 
         None
@@ -186,8 +196,11 @@ mod client {
             .send()
             .await
         {
-            Ok(res) => println!("check_run_start status_code: {}", res.status()),
-            Err(e) => return Some(HandlersErr::Client(e)),
+            Ok(res) => info!("check_run_start status_code: {}", res.status()),
+            Err(e) => {
+                error!("check_run_start error: {}", e);
+                return Some(HandlersErr::Client(e))
+            }
         };
 
         None
@@ -205,7 +218,10 @@ mod client {
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(token) => token,
-            Err(e) => return Some(e),
+            Err(e) => {
+                error!("jwt::create error: {:?}", e);
+                return Some(e)
+            }
         };
 
         // init http client
@@ -228,11 +244,15 @@ mod client {
             .send()
             .await
         {
-            Ok(res) => println!("check_run_complete status_code: {}", res.status()),
-            Err(e) => return Some(HandlersErr::Client(e)),
-        };
-
-        None
+            Ok(res) => {
+                info!("check_run_complete status_code: {}", res.status());
+                None
+            }
+            Err(e) => {
+                error!("check_run_complete error: {}", e);
+                Some(HandlersErr::Client(e))
+            },
+        }
     }
 }
 
