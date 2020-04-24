@@ -7,6 +7,7 @@ pub struct Event {
     action: String,
     check_suite: CheckSuite,
     repository: Repo,
+    installation: Installation,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -16,7 +17,6 @@ pub struct CheckSuite {
     head_sha: String,
     check_runs_url: String,
     app: App,
-    installation: Installation,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -138,10 +138,10 @@ mod client {
 
     use super::jwt;
     use super::HandlersErr;
-    #[macro_use] use serde_json::*;
-    use time::Instant;
+    #[macro_use]
+    use serde_json::*;
     use serde::{Deserialize, Serialize};
-
+    use time::Instant;
 
     #[derive(Deserialize, Serialize, Debug)]
     struct InstallToken {
@@ -155,12 +155,14 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-
-        // get token for auth
+        // get auth token
         let token = match get_installation_token(name, installation_id) {
             Ok(token) => token,
-            Err(e) => Some(e),
-        }
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                return Some(e);
+            }
+        };
 
         // init http client
         let client = reqwest::Client::new();
@@ -187,7 +189,19 @@ mod client {
     }
 
     // mark 'check_run' as 'in_progress'
-    pub async fn check_run_start(name: String, url: String, installation_id: u64) -> Option<HandlersErr> {
+    pub async fn check_run_start(
+        name: String,
+        url: String,
+        installation_id: u64,
+    ) -> Option<HandlersErr> {
+        // get auth token
+        let token = match get_installation_token(name, installation_id) {
+            Ok(token) => token,
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                return Some(e);
+            }
+        };
 
         // init http client
         let client = reqwest::Client::new();
@@ -220,6 +234,14 @@ mod client {
         success: bool,
         installation_id: u64,
     ) -> Option<HandlersErr> {
+        // get auth token
+        let token = match get_installation_token(name, installation_id) {
+            Ok(token) => token,
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                return Some(e);
+            }
+        };
 
         // init http client
         let client = reqwest::Client::new();
@@ -252,8 +274,10 @@ mod client {
         }
     }
 
-    pub async fn get_installation_token(name: String, installation_id: u64) -> Result<String, HandlersErr> {
-
+    pub async fn get_installation_token(
+        name: String,
+        installation_id: u64,
+    ) -> Result<String, HandlersErr> {
         // create jwt token
         let token = match jwt::create(
             &name,
@@ -263,29 +287,27 @@ mod client {
             Err(e) => {
                 error!("jwt::create error: {:?}", e);
                 return Err(e);
-            },
+            }
         };
 
         // init http client
         let client = reqwest::Client::new();
 
         // form url
-        let url = format!("https://api.github.com/app/installations/{}/access_tokens", installation_id);
+        let url = format!(
+            "https://api.github.com/app/installations/{}/access_tokens",
+            installation_id
+        );
 
         // send post
-        let res = match client
-            .post(&url)
-            .bearer_auth(token)
-            .send()
-            .await
-            {
-                Ok(res) => res,
-                Err(e) => {
-                    error!("get_installation_token error: {}", e);
-                    Err(HandlersErr::Client(e))
-                },
-            };
-        
+        let res = match client.post(&url).bearer_auth(token).send().await {
+            Ok(res) => res,
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                Err(HandlersErr::Client(e))
+            }
+        };
+
         // get installation token from body
         match res.json::<InstallToken>() {
             Ok(body) => Ok(body),
