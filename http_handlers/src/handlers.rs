@@ -277,6 +277,16 @@ mod client {
             }
         }
     }
+
+    pub async fn get_installation_token(name: String, installation_id: u64) -> Result<String, HandlersErr> {
+        match jwt::create(
+            &name,
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+        ) {
+            Ok(token) => Ok(token),
+            Err(HandlersErr::Io(e)) => Err(HandlersErr::Io(e)),
+        }
+    }
 }
 
 // JWT formation module
