@@ -336,12 +336,6 @@ mod client {
         // send post with jwt token
         let res = client.post(&url).bearer_auth(jwt_token).send().await?;
 
-        // marshal response into map
-        let body_map = match res.json::<HashMap<String, String>>().await {
-            Ok(body_map) => body_map,
-            Err(e) => return Err(HandlersErr::Client(e)),
-        };
-
         // get installation token from map
         match body_map.get("token") {
             Some(token) => Ok(token.to_string()),
