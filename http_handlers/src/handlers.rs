@@ -17,17 +17,11 @@ pub struct CheckSuite {
     status: String,
     head_sha: String,
     check_runs_url: String,
-    app: App,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct App {
-    id: u64,
-    name: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Repo {
+    full_name: String,
     clone_url: String,
 }
 
@@ -127,7 +121,7 @@ mod handlers {
         match event.action.as_str() {
             "requested" => {
                 client::check_run_create(
-                    event.check_suite.app.name,
+                    event.repository.full_name,
                     event.check_suite.head_sha,
                     event.check_suite.check_runs_url,
                     event.installation.id,
@@ -137,7 +131,7 @@ mod handlers {
             }
             "rerequested" => {
                 client::check_run_create(
-                    event.check_suite.app.name,
+                    event.repository.full_name,
                     event.check_suite.head_sha,
                     event.check_suite.check_runs_url,
                     event.installation.id,
@@ -147,7 +141,7 @@ mod handlers {
             }
             "created" => {
                 client::check_run_start(
-                    event.check_suite.app.name,
+                    event.repository.full_name,
                     event.check_suite.check_runs_url,
                     event.installation.id,
                 )
