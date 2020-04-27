@@ -312,19 +312,47 @@ mod client {
         }
     }
 
-    fn get_installation_token(name: String, installation_id: u64) -> Result<String> {
-        match jwt::create(
+    // get_installation_token will create a jwt token from a pem file
+    // use as bearer in request to generate installation token
+    pub async fn get_installation_token(name: String, installation_id: u64) -> Result<String> {
+
+        // create jwt token
+        let jwt_token = match jwt::create(
             &name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
-            Ok(jwt_token) => Ok(jwt_token),
+            Ok(jwt_token) => jwt_token,
             Err(e) => match e {
                 HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
                 HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
                 HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
                 HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
             },
-        }
+        };
+
+        // init http client
+        let client = reqwest::Client::new();
+
+        // form url
+        let url = format!(
+            "https://api.github.com/app/installations/{}/access_tokens",
+            installation_id
+        );
+        
+        // send post
+        let res = match client.post(&url).bearer_auth(jwt_token).send().await {
+            Ok(res) => res,
+            Err(e) => return Err(HandlersErr::Client(e)),
+        };
+        
+        // get installation token from body
+        let body = match res.json::<InstallToken>().await {
+            Ok(body) => body,
+            Err(e) => return Err(HandlersErr::Client(e)),
+        };
+
+        // return installation token
+        Ok(body.token)
     }
 }
 
