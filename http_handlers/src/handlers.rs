@@ -390,10 +390,7 @@ mod jwt {
     // create jwt from pem file
     pub fn create(name: &str, pem_path: String) -> Result<String> {
         // read pem file into string var
-        let pem = match fs::read_to_string(pem_path) {
-            Ok(pem) => pem,
-            Err(e) => return Err(HandlersErr::Io(e)),
-        };
+        let pem = fs::read_to_string(pem_path)?;
 
         // define claims
         let claims = Claims {
@@ -410,10 +407,7 @@ mod jwt {
         let key = EncodingKey::from_rsa_pem(pem.as_bytes())?;
 
         // encode token that can be used in http headers
-        match encode(&header, &claims, &key) {
-            Ok(token) => Ok(token),
-            Err(e) => Err(HandlersErr::Jwt(e)),
-        }
+        Ok(encode(&header, &claims, &key)?)
     }
 }
 
