@@ -184,16 +184,16 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+
+        // get installation token
+        let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
+            },
         };
 
         // init http client
@@ -226,16 +226,16 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+
+        // get installation token
+        let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
+            },
         };
 
         // init http client
