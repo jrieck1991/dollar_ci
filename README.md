@@ -8,7 +8,7 @@ Rust code is cross-compiled from Mac OSX to `x86_64-unknown-linux-musl`, you wil
 
 ## packer
 
-Images are built in the default VPC of `us-east-1`. To recreate a default vpc run: `aws ec2 create-default-vpc`
+EC2 AMI's are built in the default VPC of `us-east-1`. To recreate a default vpc run: `aws ec2 create-default-vpc`
 
 ## terraform
 
