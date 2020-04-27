@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
-
-use log::{debug, error, info, warn};
+use std::error;
+use std::fmt;
+use std::result;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Event {
     action: String,
     check_suite: CheckSuite,
     repository: Repo,
+    installation: Installation,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -15,19 +17,21 @@ pub struct CheckSuite {
     status: String,
     head_sha: String,
     check_runs_url: String,
-    app: App,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct App {
-    id: u64,
-    name: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Repo {
+    full_name: String,
     clone_url: String,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Installation {
+    id: u64,
+}
+
+// result type alias
+type Result<T> = result::Result<T, HandlersErr>;
 
 // Error wrapper for the project
 #[derive(Debug)]
@@ -38,6 +42,31 @@ pub enum HandlersErr {
     Io(std::io::Error),
 }
 
+// implement the Display trait to eventually fulfill the Error trait
+impl fmt::Display for HandlersErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            HandlersErr::Json(ref err) => write!(f, "json error: {}", err),
+            HandlersErr::Client(ref err) => write!(f, "client error: {}", err),
+            HandlersErr::Jwt(ref err) => write!(f, "jwt error: {}", err),
+            HandlersErr::Io(ref err) => write!(f, "IO error: {}", err),
+        }
+    }
+}
+
+// implement the Error trait
+impl error::Error for HandlersErr {
+    fn cause(&self) -> Option<&dyn error::Error> {
+        match *self {
+            HandlersErr::Json(ref err) => Some(err),
+            HandlersErr::Client(ref err) => Some(err),
+            HandlersErr::Jwt(ref err) => Some(err),
+            HandlersErr::Io(ref err) => Some(err),
+        }
+    }
+}
+
+// implement From for each error to be wrapped
 impl From<reqwest::Error> for HandlersErr {
     fn from(err: reqwest::Error) -> HandlersErr {
         HandlersErr::Client(err)
@@ -91,29 +120,77 @@ mod handlers {
         // route event based on action
         match event.action.as_str() {
             "requested" => {
-                client::check_run_create(
-                    event.check_suite.app.name,
-                    event.check_suite.head_sha,
-                    event.check_suite.check_runs_url,
+                match client::check_run_create(
+                    &event.repository.full_name,
+                    &event.check_suite.head_sha,
+                    &event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
-                .await;
+                .await
+                {
+                    Ok(code) => {
+                        info!(
+                            "check_run_create for {}. status_code: {}",
+                            event.repository.full_name, code
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            "check_run_create for {}. Error: {}",
+                            event.repository.full_name, e
+                        );
+                    }
+                };
+
                 Ok(StatusCode::OK)
             }
             "rerequested" => {
-                client::check_run_create(
-                    event.check_suite.app.name,
-                    event.check_suite.head_sha,
-                    event.check_suite.check_runs_url,
+                match client::check_run_create(
+                    &event.repository.full_name,
+                    &event.check_suite.head_sha,
+                    &event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
-                .await;
+                .await
+                {
+                    Ok(code) => {
+                        info!(
+                            "check_run_create for {}. status_code: {}",
+                            event.repository.full_name, code
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            "check_run_create for {}. Error: {}",
+                            event.repository.full_name, e
+                        );
+                    }
+                };
+
                 Ok(StatusCode::OK)
             }
             "created" => {
-                client::check_run_start(
-                    event.check_suite.app.name,
-                    event.check_suite.check_runs_url,
+                match client::check_run_start(
+                    &event.repository.full_name,
+                    &event.check_suite.check_runs_url,
+                    event.installation.id,
                 )
-                .await;
+                .await
+                {
+                    Ok(code) => {
+                        info!(
+                            "check_run_complete for {}. status_code: {}",
+                            event.repository.full_name, code
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            "check_run_complete for {}. Error: {}",
+                            event.repository.full_name, e
+                        );
+                    }
+                };
+
                 Ok(StatusCode::OK)
             }
             _ => {
@@ -129,25 +206,32 @@ mod client {
 
     use super::jwt;
     use super::HandlersErr;
-    use serde_json::*;
+    use super::Result;
+    use serde::{Deserialize, Serialize};
+    use serde_json::json;
     use time::Instant;
+
+    #[derive(Deserialize, Serialize, Debug)]
+    struct InstallToken {
+        token: String,
+    }
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
-        name: String,
-        head_sha: String,
-        url: String,
-    ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+        name: &str,
+        head_sha: &str,
+        url: &str,
+        installation_id: u64,
+    ) -> Result<reqwest::StatusCode> {
+        // get installation token
+        let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
+            },
         };
 
         // init http client
@@ -157,35 +241,30 @@ mod client {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        match client
-            .post(&url)
-            .json(&body)
-            .bearer_auth(token)
-            .send()
-            .await
-        {
-            Ok(res) => info!("check_run_create status_code: {}", res.status()),
+        match client.post(url).json(&body).bearer_auth(token).send().await {
+            Ok(res) => Ok(res.status()),
             Err(e) => {
                 error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
-                return Some(HandlersErr::Client(e));
+                return Err(HandlersErr::Client(e));
             }
-        };
-
-        None
+        }
     }
 
     // mark 'check_run' as 'in_progress'
-    pub async fn check_run_start(name: String, url: String) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+    pub async fn check_run_start(
+        name: &str,
+        url: &str,
+        installation_id: u64,
+    ) -> Result<reqwest::StatusCode> {
+        // get installation token
+        let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
+            },
         };
 
         // init http client
@@ -195,39 +274,31 @@ mod client {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client
-            .post(&url)
-            .json(&body)
-            .bearer_auth(token)
-            .send()
-            .await
-        {
-            Ok(res) => info!("check_run_start status_code: {}", res.status()),
+        match client.post(url).json(&body).bearer_auth(token).send().await {
+            Ok(res) => Ok(res.status()),
             Err(e) => {
-                error!("check_run_start error: {}\nrequest_body: {}", e, &body);
-                return Some(HandlersErr::Client(e));
+                error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
+                return Err(HandlersErr::Client(e));
             }
-        };
-
-        None
+        }
     }
 
     // mark 'check_run' as 'complete' with either a fail or pass
     pub async fn check_run_complete(
-        name: String,
-        url: String,
+        name: &str,
+        url: &str,
         success: bool,
+        installation_id: u64,
     ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+        // get installation token
+        let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
+            },
         };
 
         // init http client
@@ -243,13 +314,7 @@ mod client {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client
-            .post(&url)
-            .json(&body)
-            .bearer_auth(token)
-            .send()
-            .await
-        {
+        match client.post(url).json(&body).bearer_auth(token).send().await {
             Ok(res) => {
                 info!("check_run_complete status_code: {}", res.status());
                 None
@@ -260,11 +325,61 @@ mod client {
             }
         }
     }
+
+    // get_installation_token will create a jwt token from a pem file
+    // use as bearer in request to generate installation token
+    pub async fn get_installation_token(name: &str, installation_id: u64) -> Result<String> {
+        // create jwt token
+        let jwt_token = match jwt::create(
+            name,
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+        ) {
+            Ok(jwt_token) => jwt_token,
+            // is there anyway to make this less
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
+            },
+        };
+
+        // init http client
+        let client = reqwest::Client::new();
+
+        // form url
+        let url = format!(
+            "https://api.github.com/app/installations/{}/access_tokens",
+            installation_id
+        );
+
+        // send post with jwt token
+        let res = match client.post(&url).bearer_auth(jwt_token).send().await {
+            Ok(res) => res,
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                return Err(HandlersErr::Client(e));
+            }
+        };
+
+        // get installation token from body
+        let body = match res.json::<InstallToken>().await {
+            Ok(body) => body,
+            Err(e) => {
+                error!("token parse error: {}", e);
+                return Err(HandlersErr::Client(e));
+            }
+        };
+
+        // return installation token
+        Ok(body.token)
+    }
 }
 
 // JWT formation module
 mod jwt {
     use super::HandlersErr;
+    use super::Result;
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::fs;
@@ -273,11 +388,12 @@ mod jwt {
     struct Claims {
         sub: String,
         company: String,
+        iss: u64,
         exp: usize,
     }
 
     // create jwt from pem file
-    pub fn create(name: &str, pem_path: String) -> Result<String, HandlersErr> {
+    pub fn create(name: &str, pem_path: String) -> Result<String> {
         // read pem file into string var
         let pem = match fs::read_to_string(pem_path) {
             Ok(pem) => pem,
@@ -287,8 +403,9 @@ mod jwt {
         // define claims
         let claims = Claims {
             sub: name.to_string(),
+            iss: 61447, // app id given by github
             company: String::from("dollar-ci"),
-            exp: 10000000000,
+            exp: 10000000000, // TODO update to 10 minutes
         };
 
         // setup header
