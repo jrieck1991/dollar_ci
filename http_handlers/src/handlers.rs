@@ -390,7 +390,7 @@ mod tests {
     async fn test_events() {
         // get test payload from file
         let payload =
-            fs::read_to_string("test_github_payload.json").expect("unable to read file to string");
+            fs::read_to_string("action_requested.json").unwrap();
 
         // send request
         let resp = warp::test::request()
