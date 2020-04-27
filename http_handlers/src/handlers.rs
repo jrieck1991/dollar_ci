@@ -269,16 +269,16 @@ mod client {
         success: bool,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-        // create jwt token
-        let token = match jwt::create(
-            &name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
+
+        // get installation token
+        let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
-            Err(e) => {
-                error!("jwt::create error: {:?}", e);
-                return Some(e);
-            }
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
+            },
         };
 
         // init http client
@@ -314,11 +314,11 @@ mod client {
 
     // get_installation_token will create a jwt token from a pem file
     // use as bearer in request to generate installation token
-    pub async fn get_installation_token(name: String, installation_id: u64) -> Result<String> {
+    pub async fn get_installation_token(name: &str, installation_id: u64) -> Result<String> {
 
         // create jwt token
         let jwt_token = match jwt::create(
-            &name,
+            name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(jwt_token) => jwt_token,
