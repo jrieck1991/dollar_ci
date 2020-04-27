@@ -16,3 +16,7 @@ Images are built in the default VPC of `us-east-1`. To recreate a default vpc ru
 * TLS
 * billing alerts
 * s3 bucket for terraform backups
+* nginx with eip for ingress
+* get all github payloads in json for unit tests
+* build http client more efficiently
+* separate code into different files based on module?
