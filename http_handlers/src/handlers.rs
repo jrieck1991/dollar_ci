@@ -49,6 +49,7 @@ pub enum HandlersErr {
     Io(std::io::Error),
 }
 
+// implement the Display trait to eventually fulfill the Error trait
 impl fmt::Display for HandlersErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -167,10 +168,10 @@ mod client {
 
     use super::jwt;
     use super::HandlersErr;
+    use super::Result;
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use time::Instant;
-    use super::Result;
 
     #[derive(Deserialize, Serialize, Debug)]
     struct InstallToken {
@@ -184,7 +185,6 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-
         // get installation token
         let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
@@ -226,7 +226,6 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-
         // get installation token
         let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
@@ -269,7 +268,6 @@ mod client {
         success: bool,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-
         // get installation token
         let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
@@ -315,7 +313,6 @@ mod client {
     // get_installation_token will create a jwt token from a pem file
     // use as bearer in request to generate installation token
     pub async fn get_installation_token(name: &str, installation_id: u64) -> Result<String> {
-
         // create jwt token
         let jwt_token = match jwt::create(
             name,
@@ -339,13 +336,13 @@ mod client {
             "https://api.github.com/app/installations/{}/access_tokens",
             installation_id
         );
-        
+
         // send post with jwt token
         let res = match client.post(&url).bearer_auth(jwt_token).send().await {
             Ok(res) => res,
             Err(e) => return Err(HandlersErr::Client(e)),
         };
-        
+
         // get installation token from body
         let body = match res.json::<InstallToken>().await {
             Ok(body) => body,
