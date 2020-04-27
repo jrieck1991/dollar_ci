@@ -126,13 +126,20 @@ mod handlers {
                     &event.check_suite.check_runs_url,
                     event.installation.id,
                 )
-                .await {
+                .await
+                {
                     Ok(code) => {
-                        info!("check_run_create for {}. status_code: {}", event.repository.full_name, code);
-                    },
+                        info!(
+                            "check_run_create for {}. status_code: {}",
+                            event.repository.full_name, code
+                        );
+                    }
                     Err(e) => {
-                        error!("check_run_create for {}. Error: {}", event.repository.full_name, e);
-                    },
+                        error!(
+                            "check_run_create for {}. Error: {}",
+                            event.repository.full_name, e
+                        );
+                    }
                 };
 
                 Ok(StatusCode::OK)
@@ -144,13 +151,20 @@ mod handlers {
                     &event.check_suite.check_runs_url,
                     event.installation.id,
                 )
-                .await {
+                .await
+                {
                     Ok(code) => {
-                        info!("check_run_create for {}. status_code: {}", event.repository.full_name, code);
-                    },
+                        info!(
+                            "check_run_create for {}. status_code: {}",
+                            event.repository.full_name, code
+                        );
+                    }
                     Err(e) => {
-                        error!("check_run_create for {}. Error: {}", event.repository.full_name, e);
-                    },
+                        error!(
+                            "check_run_create for {}. Error: {}",
+                            event.repository.full_name, e
+                        );
+                    }
                 };
 
                 Ok(StatusCode::OK)
@@ -161,13 +175,20 @@ mod handlers {
                     &event.check_suite.check_runs_url,
                     event.installation.id,
                 )
-                .await {
+                .await
+                {
                     Ok(code) => {
-                        info!("check_run_complete for {}. status_code: {}", event.repository.full_name, code); 
-                    },
+                        info!(
+                            "check_run_complete for {}. status_code: {}",
+                            event.repository.full_name, code
+                        );
+                    }
                     Err(e) => {
-                        error!("check_run_complete for {}. Error: {}", event.repository.full_name, e);
-                    },
+                        error!(
+                            "check_run_complete for {}. Error: {}",
+                            event.repository.full_name, e
+                        );
+                    }
                 };
 
                 Ok(StatusCode::OK)
@@ -220,13 +241,7 @@ mod client {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        match client
-            .post(url)
-            .json(&body)
-            .bearer_auth(token)
-            .send()
-            .await
-        {
+        match client.post(url).json(&body).bearer_auth(token).send().await {
             Ok(res) => Ok(res.status()),
             Err(e) => {
                 error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
@@ -259,13 +274,7 @@ mod client {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client
-            .post(url)
-            .json(&body)
-            .bearer_auth(token)
-            .send()
-            .await
-        {
+        match client.post(url).json(&body).bearer_auth(token).send().await {
             Ok(res) => Ok(res.status()),
             Err(e) => {
                 error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
@@ -305,13 +314,7 @@ mod client {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client
-            .post(url)
-            .json(&body)
-            .bearer_auth(token)
-            .send()
-            .await
-        {
+        match client.post(url).json(&body).bearer_auth(token).send().await {
             Ok(res) => {
                 info!("check_run_complete status_code: {}", res.status());
                 None
@@ -329,7 +332,7 @@ mod client {
         // create jwt token
         let jwt_token = match jwt::create(
             name,
-            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem")
+            String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(jwt_token) => jwt_token,
             // is there anyway to make this less
@@ -447,7 +450,7 @@ mod tests {
     fn jwt_create() {
         match jwt::create(
             "unit",
-            String::from("../build/dollar-ci.2020-04-18.private-key.pem")
+            String::from("../build/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(token) => println!("{}", token),
             Err(e) => panic!(e),
