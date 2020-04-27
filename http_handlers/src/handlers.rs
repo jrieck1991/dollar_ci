@@ -362,6 +362,7 @@ mod client {
 // JWT formation module
 mod jwt {
     use super::HandlersErr;
+    use super::Result;
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::fs;
@@ -374,7 +375,7 @@ mod jwt {
     }
 
     // create jwt from pem file
-    pub fn create(name: &str, pem_path: String) -> Result<String, HandlersErr> {
+    pub fn create(name: &str, pem_path: String) -> Result<String> {
         // read pem file into string var
         let pem = match fs::read_to_string(pem_path) {
             Ok(pem) => pem,
