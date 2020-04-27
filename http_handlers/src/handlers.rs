@@ -1,4 +1,4 @@
-use log::{debug, error, info, warn};
+
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
@@ -63,7 +63,7 @@ impl fmt::Display for HandlersErr {
 
 // implement the Error trait
 impl error::Error for HandlersErr {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             HandlersErr::Json(ref err) => Some(err),
             HandlersErr::Client(ref err) => Some(err),
@@ -185,6 +185,7 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
+
         // get installation token
         let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
