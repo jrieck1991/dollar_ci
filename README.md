@@ -21,3 +21,5 @@ Images are built in the default VPC of `us-east-1`. To recreate a default vpc ru
 * build http client more efficiently
 * separate code into different files based on module?
 * fix terraform VPC race condition
+* read github headers
+* add the github headers we need

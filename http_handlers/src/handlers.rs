@@ -357,7 +357,6 @@ mod client {
         let res = match client.post(&url).bearer_auth(jwt_token).send().await {
             Ok(res) => res,
             Err(e) => {
-                error!("get_installation_token error: {}", e);
                 return Err(HandlersErr::Client(e));
             }
         };
