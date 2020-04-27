@@ -120,29 +120,45 @@ mod handlers {
         // route event based on action
         match event.action.as_str() {
             "requested" => {
-                client::check_run_create(
-                    event.repository.full_name,
-                    event.check_suite.head_sha,
-                    event.check_suite.check_runs_url,
+                let status_code = match client::check_run_create(
+                    &event.repository.full_name,
+                    &event.check_suite.head_sha,
+                    &event.check_suite.check_runs_url,
                     event.installation.id,
                 )
-                .await;
+                .await {
+                    Ok(code) => {
+                        info!("check_run_create for {}. status_code: {}", event.repository.full_name, code);
+                    },
+                    Err(e) => {
+                        error!("check_run_create for {}. Error: {}", event.repository.full_name, e);
+                    },
+                };
+
                 Ok(StatusCode::OK)
             }
             "rerequested" => {
-                client::check_run_create(
-                    event.repository.full_name,
-                    event.check_suite.head_sha,
-                    event.check_suite.check_runs_url,
+                let status_code = match client::check_run_create(
+                    &event.repository.full_name,
+                    &event.check_suite.head_sha,
+                    &event.check_suite.check_runs_url,
                     event.installation.id,
                 )
-                .await;
+                .await {
+                    Ok(code) => {
+                        info!("check_run_create for {}. status_code: {}", event.repository.full_name, code);
+                    },
+                    Err(e) => {
+                        error!("check_run_create for {}. Error: {}", event.repository.full_name, e);
+                    },
+                };
+
                 Ok(StatusCode::OK)
             }
             "created" => {
                 client::check_run_start(
-                    event.repository.full_name,
-                    event.check_suite.check_runs_url,
+                    &event.repository.full_name,
+                    &event.check_suite.check_runs_url,
                     event.installation.id,
                 )
                 .await;
@@ -173,19 +189,19 @@ mod client {
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
-        name: String,
-        head_sha: String,
-        url: String,
+        name: &str,
+        head_sha: &str,
+        url: &str,
         installation_id: u64,
-    ) -> Option<HandlersErr> {
+    ) -> Result<reqwest::StatusCode> {
         // get installation token
         let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
             Err(e) => match e {
-                HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
-                HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
-                HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
-                HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
+                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
             },
         };
 
@@ -197,26 +213,24 @@ mod client {
 
         // send post
         match client
-            .post(&url)
+            .post(url)
             .json(&body)
             .bearer_auth(token)
             .send()
             .await
         {
-            Ok(res) => info!("check_run_create status_code: {}", res.status()),
+            Ok(res) => Ok(res.status()),
             Err(e) => {
                 error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
-                return Some(HandlersErr::Client(e));
+                return Err(HandlersErr::Client(e));
             }
-        };
-
-        None
+        }
     }
 
     // mark 'check_run' as 'in_progress'
     pub async fn check_run_start(
-        name: String,
-        url: String,
+        name: &str,
+        url: &str,
         installation_id: u64,
     ) -> Option<HandlersErr> {
         // get installation token
@@ -238,7 +252,7 @@ mod client {
 
         // send post
         match client
-            .post(&url)
+            .post(url)
             .json(&body)
             .bearer_auth(token)
             .send()
