@@ -363,16 +363,12 @@ mod client {
         };
 
         // get installation token from body
-        let body = match res.json::<InstallToken>().await {
-            Ok(body) => body,
+        match res.json::<InstallToken>().await {
+            Ok(body) => Ok(body.token),
             Err(e) => {
-                error!("token parse error: {}", e);
                 return Err(HandlersErr::Client(e));
             }
-        };
-
-        // return installation token
-        Ok(body.token)
+        }
     }
 }
 
