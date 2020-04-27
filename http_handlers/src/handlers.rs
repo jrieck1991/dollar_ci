@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::error;
+use std::error::Error;
 use std::fmt;
 use std::result;
 
@@ -40,6 +40,7 @@ pub enum HandlersErr {
     Client(reqwest::Error),
     Jwt(jsonwebtoken::errors::Error),
     Io(std::io::Error),
+    NotFound,
 }
 
 // implement the Display trait to eventually fulfill the Error trait
@@ -50,18 +51,20 @@ impl fmt::Display for HandlersErr {
             HandlersErr::Client(ref err) => write!(f, "client error: {}", err),
             HandlersErr::Jwt(ref err) => write!(f, "jwt error: {}", err),
             HandlersErr::Io(ref err) => write!(f, "IO error: {}", err),
+            HandlersErr::NotFound => write!(f, "{}", &"not found"),
         }
     }
 }
 
 // implement the Error trait
-impl error::Error for HandlersErr {
-    fn cause(&self) -> Option<&dyn error::Error> {
+impl Error for HandlersErr {
+    fn cause(&self) -> Option<&dyn Error> {
         match *self {
             HandlersErr::Json(ref err) => Some(err),
             HandlersErr::Client(ref err) => Some(err),
             HandlersErr::Jwt(ref err) => Some(err),
             HandlersErr::Io(ref err) => Some(err),
+            HandlersErr::NotFound => Some(&HandlersErr::NotFound)
         }
     }
 }
@@ -283,6 +286,7 @@ mod client {
                 HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
                 HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
                 HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
+                HandlersErr::NotFound => return Some(HandlersErr::NotFound),
             },
         };
 
@@ -330,10 +334,7 @@ mod client {
         );
 
         // send post with jwt token
-        let body = match client.post(&url).bearer_auth(jwt_token).send().await {
-            Ok(body) => body,
-            Err(e) => return Err(HandlersErr::Client(e)),
-        };
+        let res = client.post(&url).bearer_auth(jwt_token).send().await?;
 
         // marshal response into map
         let body_map = match res.json::<HashMap<String, String>>().await {
@@ -343,10 +344,10 @@ mod client {
 
         // get installation token from map
         match body_map.get("token") {
-            Some(token) => Ok(token),
+            Some(token) => Ok(token.to_string()),
             None => {
-                error!("get_installation_token response: {:#?}", body_map)
-                
+                error!("get_installation_token: token not found, response: {:#?}", body_map);
+                return Err(HandlersErr::NotFound);
             },
         }
     }
@@ -354,7 +355,6 @@ mod client {
 
 // JWT formation module
 mod jwt {
-    use super::HandlersErr;
     use super::Result;
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
