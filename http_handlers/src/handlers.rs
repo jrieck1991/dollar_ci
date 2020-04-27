@@ -2,6 +2,7 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
+use std::result;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Event {
@@ -36,6 +37,9 @@ pub struct Installation {
     id: u64,
 }
 
+// result type alias
+type Result<T> = result::Result<T, HandlersErr>;
+
 // Error wrapper for the project
 #[derive(Debug)]
 pub enum HandlersErr {
@@ -56,17 +60,9 @@ impl fmt::Display for HandlersErr {
     }
 }
 
+// implement the Error trait
 impl error::Error for HandlersErr {
-    fn description(&self) -> &str {
-        match *self {
-            HandlersErr::Json(ref err) => err.description(),
-            HandlersErr::Client(ref err) => err.description(),
-            HandlersErr::Jwt(ref err) => err.description(),
-            HandlersErr::Io(ref err) => err.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<dyn error::Error> {
+    fn cause(&self) -> Option<&error::Error> {
         match *self {
             HandlersErr::Json(ref err) => Some(err),
             HandlersErr::Client(ref err) => Some(err),
@@ -76,6 +72,7 @@ impl error::Error for HandlersErr {
     }
 }
 
+// implement From for each error to be wrapped
 impl From<reqwest::Error> for HandlersErr {
     fn from(err: reqwest::Error) -> HandlersErr {
         HandlersErr::Client(err)
@@ -171,8 +168,9 @@ mod client {
     use super::jwt;
     use super::HandlersErr;
     use serde::{Deserialize, Serialize};
-    use serde_json::*;
+    use serde_json::json;
     use time::Instant;
+    use super::Result;
 
     #[derive(Deserialize, Serialize, Debug)]
     struct InstallToken {
@@ -314,14 +312,19 @@ mod client {
         }
     }
 
-    pub async fn get_installation_token(
-        name: String,
-        installation_id: u64,
-    ) -> Result<String, HandlersErr> {
-        let jwt_token = jwt::create(
+    fn get_installation_token(name: String, installation_id: u64) -> Result<String> {
+        match jwt::create(
             &name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        )?;
+        ) {
+            Ok(jwt_token) => Ok(jwt_token),
+            Err(e) => match e {
+                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
+                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
+                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
+                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
+            },
+        }
     }
 }
 
