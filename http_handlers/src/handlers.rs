@@ -1,6 +1,7 @@
-use serde::{Deserialize, Serialize};
-
 use log::{debug, error, info, warn};
+use serde::{Deserialize, Serialize};
+use std::error;
+use std::fmt;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Event {
@@ -42,6 +43,37 @@ pub enum HandlersErr {
     Client(reqwest::Error),
     Jwt(jsonwebtoken::errors::Error),
     Io(std::io::Error),
+}
+
+impl fmt::Display for HandlersErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            HandlersErr::Json(ref err) => write!(f, "json error: {}", err),
+            HandlersErr::Client(ref err) => write!(f, "client error: {}", err),
+            HandlersErr::Jwt(ref err) => write!(f, "jwt error: {}", err),
+            HandlersErr::Io(ref err) => write!(f, "IO error: {}", err),
+        }
+    }
+}
+
+impl error::Error for HandlersErr {
+    fn description(&self) -> &str {
+        match *self {
+            HandlersErr::Json(ref err) => err.description(),
+            HandlersErr::Client(ref err) => err.description(),
+            HandlersErr::Jwt(ref err) => err.description(),
+            HandlersErr::Io(ref err) => err.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<dyn error::Error> {
+        match *self {
+            HandlersErr::Json(ref err) => Some(err),
+            HandlersErr::Client(ref err) => Some(err),
+            HandlersErr::Jwt(ref err) => Some(err),
+            HandlersErr::Io(ref err) => Some(err),
+        }
+    }
 }
 
 impl From<reqwest::Error> for HandlersErr {
@@ -138,8 +170,8 @@ mod client {
 
     use super::jwt;
     use super::HandlersErr;
-    use serde_json::*;
     use serde::{Deserialize, Serialize};
+    use serde_json::*;
     use time::Instant;
 
     #[derive(Deserialize, Serialize, Debug)]
@@ -191,7 +223,11 @@ mod client {
     }
 
     // mark 'check_run' as 'in_progress'
-    pub async fn check_run_start(name: String, url: String, installation_id: u64) -> Option<HandlersErr> {
+    pub async fn check_run_start(
+        name: String,
+        url: String,
+        installation_id: u64,
+    ) -> Option<HandlersErr> {
         // create jwt token
         let token = match jwt::create(
             &name,
@@ -278,14 +314,14 @@ mod client {
         }
     }
 
-    pub async fn get_installation_token(name: String, installation_id: u64) -> Result<String, HandlersErr> {
-        match jwt::create(
+    pub async fn get_installation_token(
+        name: String,
+        installation_id: u64,
+    ) -> Result<String, HandlersErr> {
+        let jwt_token = jwt::create(
             &name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
-            Ok(token) => Ok(token),
-            Err(HandlersErr::Io(e)) => Err(HandlersErr::Io(e)),
-        }
+        )?;
     }
 }
 
