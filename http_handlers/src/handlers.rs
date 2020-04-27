@@ -316,6 +316,7 @@ mod client {
         let jwt_token = match jwt::create(
             name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
+            installation_id
         ) {
             Ok(jwt_token) => jwt_token,
             // is there anyway to make this less
@@ -371,11 +372,12 @@ mod jwt {
     struct Claims {
         sub: String,
         company: String,
+        iss: u64,
         exp: usize,
     }
 
     // create jwt from pem file
-    pub fn create(name: &str, pem_path: String) -> Result<String> {
+    pub fn create(name: &str, pem_path: String, installation_id: u64) -> Result<String> {
         // read pem file into string var
         let pem = match fs::read_to_string(pem_path) {
             Ok(pem) => pem,
@@ -385,8 +387,9 @@ mod jwt {
         // define claims
         let claims = Claims {
             sub: name.to_string(),
+            iss: installation_id,
             company: String::from("dollar-ci"),
-            exp: 10000000000,
+            exp: 10000000000, // TODO update to 10 minutes
         };
 
         // setup header
@@ -432,6 +435,7 @@ mod tests {
         match jwt::create(
             "unit",
             String::from("../build/dollar-ci.2020-04-18.private-key.pem"),
+            1234
         ) {
             Ok(token) => println!("{}", token),
             Err(e) => panic!(e),
