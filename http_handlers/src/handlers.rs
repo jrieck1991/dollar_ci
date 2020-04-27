@@ -322,6 +322,7 @@ mod client {
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         ) {
             Ok(jwt_token) => jwt_token,
+            // is there anyway to make this less
             Err(e) => match e {
                 HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
                 HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
@@ -339,7 +340,7 @@ mod client {
             installation_id
         );
         
-        // send post
+        // send post with jwt token
         let res = match client.post(&url).bearer_auth(jwt_token).send().await {
             Ok(res) => res,
             Err(e) => return Err(HandlersErr::Client(e)),
