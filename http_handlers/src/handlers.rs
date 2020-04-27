@@ -224,15 +224,7 @@ mod client {
         installation_id: u64,
     ) -> Result<reqwest::StatusCode> {
         // get installation token
-        let token = match get_installation_token(&name, installation_id).await {
-            Ok(token) => token,
-            Err(e) => match e {
-                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
-                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
-                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
-                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
-            },
-        };
+        let token = get_installation_token(&name, installation_id).await?;
 
         // init http client
         let client = reqwest::Client::new();
@@ -241,13 +233,13 @@ mod client {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        match client.post(url).json(&body).bearer_auth(token).send().await {
-            Ok(res) => Ok(res.status()),
-            Err(e) => {
-                error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
-                return Err(HandlersErr::Client(e));
-            }
-        }
+        Ok(client
+            .post(url)
+            .json(&body)
+            .bearer_auth(token)
+            .send()
+            .await?
+            .status())
     }
 
     // mark 'check_run' as 'in_progress'
@@ -257,15 +249,7 @@ mod client {
         installation_id: u64,
     ) -> Result<reqwest::StatusCode> {
         // get installation token
-        let token = match get_installation_token(&name, installation_id).await {
-            Ok(token) => token,
-            Err(e) => match e {
-                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
-                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
-                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
-                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
-            },
-        };
+        let token = get_installation_token(&name, installation_id).await?;
 
         // init http client
         let client = reqwest::Client::new();
@@ -274,13 +258,13 @@ mod client {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client.post(url).json(&body).bearer_auth(token).send().await {
-            Ok(res) => Ok(res.status()),
-            Err(e) => {
-                error!("check_run_create_error: {}\nrequest_body: {}", e, &body);
-                return Err(HandlersErr::Client(e));
-            }
-        }
+        Ok(client
+            .post(url)
+            .json(&body)
+            .bearer_auth(token)
+            .send()
+            .await?
+            .status())
     }
 
     // mark 'check_run' as 'complete' with either a fail or pass
@@ -330,19 +314,10 @@ mod client {
     // use as bearer in request to generate installation token
     pub async fn get_installation_token(name: &str, installation_id: u64) -> Result<String> {
         // create jwt token
-        let jwt_token = match jwt::create(
+        let jwt_token = jwt::create(
             name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
-        ) {
-            Ok(jwt_token) => jwt_token,
-            // is there anyway to make this less
-            Err(e) => match e {
-                HandlersErr::Json(e) => return Err(HandlersErr::Json(e)),
-                HandlersErr::Client(e) => return Err(HandlersErr::Client(e)),
-                HandlersErr::Jwt(e) => return Err(HandlersErr::Jwt(e)),
-                HandlersErr::Io(e) => return Err(HandlersErr::Io(e)),
-            },
-        };
+        )?;
 
         // init http client
         let client = reqwest::Client::new();
@@ -354,25 +329,13 @@ mod client {
         );
 
         // send post with jwt token
-        let res = match client.post(&url).bearer_auth(jwt_token).send().await {
-            Ok(res) => res,
-            Err(e) => {
-                error!("get_installation_token error: {}", e);
-                return Err(HandlersErr::Client(e));
-            }
-        };
+        let res = client.post(&url).bearer_auth(jwt_token).send().await?;
 
         // get installation token from body
-        let body = match res.json::<InstallToken>().await {
-            Ok(body) => body,
-            Err(e) => {
-                error!("token parse error: {}", e);
-                return Err(HandlersErr::Client(e));
-            }
-        };
-
-        // return installation token
-        Ok(body.token)
+        match res.json::<InstallToken>().await {
+            Ok(body) => Ok(body.token),
+            Err(e) => Err(HandlersErr::Client(e)),
+        }
     }
 }
 
@@ -395,10 +358,7 @@ mod jwt {
     // create jwt from pem file
     pub fn create(name: &str, pem_path: String) -> Result<String> {
         // read pem file into string var
-        let pem = match fs::read_to_string(pem_path) {
-            Ok(pem) => pem,
-            Err(e) => return Err(HandlersErr::Io(e)),
-        };
+        let pem = fs::read_to_string(pem_path)?;
 
         // define claims
         let claims = Claims {
@@ -415,10 +375,7 @@ mod jwt {
         let key = EncodingKey::from_rsa_pem(pem.as_bytes())?;
 
         // encode token that can be used in http headers
-        match encode(&header, &claims, &key) {
-            Ok(token) => Ok(token),
-            Err(e) => Err(HandlersErr::Jwt(e)),
-        }
+        Ok(encode(&header, &claims, &key)?)
     }
 }
 

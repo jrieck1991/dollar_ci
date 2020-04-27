@@ -8,7 +8,11 @@ Rust code is cross-compiled from Mac OSX to `x86_64-unknown-linux-musl`, you wil
 
 ## packer
 
-Images are built in the default VPC of `us-east-1`. To recreate a default vpc run: `aws ec2 create-default-vpc`
+EC2 AMI's are built in the default VPC of `us-east-1`. To recreate a default vpc run: `aws ec2 create-default-vpc`
+
+## terraform
+
+All infrastructure is managed by terraform, backend will be migrated to an S3 bucket.
 
 ## TODO
 
@@ -21,3 +25,5 @@ Images are built in the default VPC of `us-east-1`. To recreate a default vpc ru
 * build http client more efficiently
 * separate code into different files based on module?
 * fix terraform VPC race condition
+* read github headers
+* add the github headers we need
