@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
@@ -185,7 +184,6 @@ mod client {
         url: String,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-
         // get installation token
         let token = match get_installation_token(&name, installation_id).await {
             Ok(token) => token,
@@ -341,13 +339,19 @@ mod client {
         // send post with jwt token
         let res = match client.post(&url).bearer_auth(jwt_token).send().await {
             Ok(res) => res,
-            Err(e) => return Err(HandlersErr::Client(e)),
+            Err(e) => {
+                error!("get_installation_token error: {}", e);
+                return Err(HandlersErr::Client(e));
+            }
         };
 
         // get installation token from body
         let body = match res.json::<InstallToken>().await {
             Ok(body) => body,
-            Err(e) => return Err(HandlersErr::Client(e)),
+            Err(e) => {
+                error!("token parse error: {}", e);
+                return Err(HandlersErr::Client(e));
+            }
         };
 
         // return installation token
