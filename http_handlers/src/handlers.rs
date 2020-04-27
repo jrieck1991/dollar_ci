@@ -210,6 +210,7 @@ mod client {
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use time::Instant;
+    use std::collections::HashMap;
 
     #[derive(Deserialize, Serialize, Debug)]
     struct InstallToken {
@@ -329,12 +330,24 @@ mod client {
         );
 
         // send post with jwt token
-        let res = client.post(&url).bearer_auth(jwt_token).send().await?;
+        let body = match client.post(&url).bearer_auth(jwt_token).send().await {
+            Ok(body) => body,
+            Err(e) => return Err(HandlersErr::Client(e)),
+        };
 
-        // get installation token from body
-        match res.json::<InstallToken>().await {
-            Ok(body) => Ok(body.token),
-            Err(e) => Err(HandlersErr::Client(e)),
+        // marshal response into map
+        let body_map = match res.json::<HashMap<String, String>>().await {
+            Ok(body_map) => body_map,
+            Err(e) => return Err(HandlersErr::Client(e)),
+        };
+
+        // get installation token from map
+        match body_map.get("token") {
+            Some(token) => Ok(token),
+            None => {
+                error!("get_installation_token response: {:#?}", body_map)
+                
+            },
         }
     }
 }
