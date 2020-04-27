@@ -10,6 +10,10 @@ Rust code is cross-compiled from Mac OSX to `x86_64-unknown-linux-musl`, you wil
 
 Images are built in the default VPC of `us-east-1`. To recreate a default vpc run: `aws ec2 create-default-vpc`
 
+## terraform
+
+All infrastructure is managed by terraform, backend will be migrated to an S3 bucket.
+
 ## TODO
 
 * a way to clean up old amis + snapshots
