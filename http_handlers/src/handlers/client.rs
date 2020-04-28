@@ -123,7 +123,9 @@ impl GithubClient {
         installation_id: u64,
     ) -> Result<StatusCode> {
         // get installation token
-        let token = self.get_installation_token(&full_name, installation_id).await?;
+        let token = self
+            .get_installation_token(&full_name, installation_id)
+            .await?;
 
         // define success param
         let mut conclusion = String::from("success");
