@@ -1,7 +1,7 @@
 use crate::models::{HandlersErr, Result};
 
 use chrono::Utc;
-use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -24,11 +24,12 @@ impl GithubClient {
         let mut headers = HeaderMap::new();
         headers.insert(
             ACCEPT,
-            "application/vnd.github.machine-man-preview+json"
+            "application/vnd.github.machine-man-preview+json, application/vnd.github.antiope-preview+json"
                 .parse()
                 .unwrap(),
         );
         headers.insert(USER_AGENT, "dollar-ci".parse().unwrap());
+        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
         // build new client with headers
         let client = ClientBuilder::new().default_headers(headers).build()?;
