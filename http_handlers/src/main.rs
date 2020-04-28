@@ -3,6 +3,7 @@ extern crate pretty_env_logger;
 extern crate log;
 
 mod handlers;
+mod models;
 
 #[tokio::main]
 async fn main() {
