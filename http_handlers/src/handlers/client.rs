@@ -61,7 +61,7 @@ impl GithubClient {
             .await?;
 
         // validate response is successful, log error response and exit
-        match log_response(res).await {
+        match log_response("check_run_create", res).await {
             None => Err(HandlersErr::NotFound),
             Some(res) => Ok(res.status()),
         }
@@ -91,7 +91,7 @@ impl GithubClient {
             .await?;
 
         // validate response is successful, log error response and exit
-        match log_response(res).await {
+        match log_response("check_run_start", res).await {
             None => Err(HandlersErr::NotFound),
             Some(res) => Ok(res.status()),
         }
@@ -143,7 +143,7 @@ impl GithubClient {
         };
 
         // validate response is successful, log error response and exit
-        match log_response(res).await {
+        match log_response("check_run_complete", res).await {
             None => return Some(HandlersErr::NotFound),
             Some(_) => None,
         }
@@ -151,6 +151,8 @@ impl GithubClient {
     // get_installation_token will create a jwt token from a pem file
     // use as bearer in request to generate installation token
     async fn get_installation_token(&self, name: &str, installation_id: u64) -> Result<String> {
+        debug!("attempting to retrieve installation token for {}", name);
+
         // create jwt token
         let jwt_token = jwt::create(
             name,
@@ -172,14 +174,20 @@ impl GithubClient {
             .await?;
 
         // validate response is successful, log error response and exit
-        let success_res = match log_response(res).await {
+        let success_res = match log_response("get_installation_token", res).await {
             None => return Err(HandlersErr::NotFound),
             Some(success_res) => success_res,
         };
 
         // get installation access token from successful response
         match success_res.json::<InstallToken>().await {
-            Ok(install_token) => Ok(install_token.token),
+            Ok(install_token) => {
+                debug!(
+                    "successfully retrieved installation access token for {}",
+                    name
+                );
+                Ok(install_token.token)
+            }
             Err(e) => Err(HandlersErr::Client(e)),
         }
     }
@@ -187,17 +195,17 @@ impl GithubClient {
 
 // log_response will log response errors, only returns the Reponse type
 // if the request was successful so that we can do additional processing
-async fn log_response(response: Response) -> Option<Response> {
+async fn log_response(name: &str, response: Response) -> Option<Response> {
     // if no error, return the response given
     match &response.error_for_status_ref() {
         Ok(_) => return Some(response),
-        Err(e) => error!("response error code: {:?}", e.status()),
+        Err(e) => error!("{} response error code: {:?}", name, e.status()),
     };
 
     // if error log the response body error message
     match response.text().await {
-        Ok(content) => error!("response error body: {}", content),
-        Err(e) => error!("response body parse error: {:?}", e),
+        Ok(content) => error!("{} response error body: {}", name, content),
+        Err(e) => error!("{} response body parse error: {:?}", name, e),
     };
 
     None
