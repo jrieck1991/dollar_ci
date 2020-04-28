@@ -23,7 +23,6 @@ All infrastructure is managed by terraform, backend will be migrated to an S3 bu
 * nginx with eip for ingress
 * get all github payloads in json for unit tests
 * build http client more efficiently
-* separate code into different files based on module?
 * fix terraform VPC race condition
 * read github headers
 * add the github headers we need
