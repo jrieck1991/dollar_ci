@@ -1,37 +1,52 @@
-// http client
-pub mod client {
+use crate::models::{HandlersErr, Result};
 
-    use super::jwt;
-    use crate::models::{HandlersErr, Result};
+use reqwest::{Client, ClientBuilder, StatusCode};
+use reqwest::header::HeaderMap;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use time::Instant;
 
-    use reqwest::{Client, StatusCode};
-    use serde::{Deserialize, Serialize};
-    use serde_json::json;
-    use time::Instant;
+#[derive(Deserialize, Serialize, Debug)]
+struct InstallToken {
+    token: String,
+}
 
-    #[derive(Deserialize, Serialize, Debug)]
-    struct InstallToken {
-        token: String,
+pub struct GithubClient {
+    http_client: Client,
+}
+
+// an http client that talks to the github api
+impl GithubClient {
+
+    // init new GithubClient
+    pub fn new() -> Result<GithubClient> {
+
+        let mut headers = HeaderMap::new();
+        let client = ClientBuilder::new()
+            .default_headers(headers).build()?;
+        
+        Ok(GithubClient {
+            http_client: client,
+        })
     }
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
+        &self,
         name: &str,
         head_sha: &str,
         url: &str,
         installation_id: u64,
     ) -> Result<StatusCode> {
+        
         // get installation token
-        let token = get_installation_token(&name, installation_id).await?;
-
-        // init http client
-        let client = Client::new();
+        let token = self.get_installation_token(&name, installation_id).await?;
 
         // create body
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        Ok(client
+        Ok(self.http_client
             .post(url)
             .json(&body)
             .bearer_auth(token)
@@ -42,21 +57,19 @@ pub mod client {
 
     // mark 'check_run' as 'in_progress'
     pub async fn check_run_start(
+        &self,
         name: &str,
         url: &str,
         installation_id: u64,
-    ) -> Result<reqwest::StatusCode> {
+    ) -> Result<StatusCode> {
         // get installation token
-        let token = get_installation_token(&name, installation_id).await?;
-
-        // init http client
-        let client = reqwest::Client::new();
+        let token = self.get_installation_token(&name, installation_id).await?;
 
         // create body
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        Ok(client
+        Ok(self.http_client
             .post(url)
             .json(&body)
             .bearer_auth(token)
@@ -67,13 +80,15 @@ pub mod client {
 
     // mark 'check_run' as 'complete' with either a fail or pass
     pub async fn check_run_complete(
+        &self,
         name: &str,
         url: &str,
         success: bool,
         installation_id: u64,
     ) -> Option<HandlersErr> {
+
         // get installation token
-        let token = match get_installation_token(&name, installation_id).await {
+        let token = match self.get_installation_token(&name, installation_id).await {
             Ok(token) => token,
             Err(e) => match e {
                 HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
@@ -83,9 +98,6 @@ pub mod client {
                 HandlersErr::NotFound => return Some(HandlersErr::NotFound),
             },
         };
-
-        // init http client
-        let client = reqwest::Client::new();
 
         // define success param
         let mut conclusion = String::from("success");
@@ -97,7 +109,7 @@ pub mod client {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match client.post(url).json(&body).bearer_auth(token).send().await {
+        match self.http_client.post(url).json(&body).bearer_auth(token).send().await {
             Ok(res) => {
                 info!("check_run_complete status_code: {}", res.status());
                 None
@@ -108,18 +120,14 @@ pub mod client {
             }
         }
     }
-
     // get_installation_token will create a jwt token from a pem file
     // use as bearer in request to generate installation token
-    pub async fn get_installation_token(name: &str, installation_id: u64) -> Result<String> {
+    async fn get_installation_token(&self, name: &str, installation_id: u64) -> Result<String> {
         // create jwt token
         let jwt_token = jwt::create(
             name,
             String::from("/home/ec2-user/dollar-ci.2020-04-18.private-key.pem"),
         )?;
-
-        // init http client
-        let client = reqwest::Client::new();
 
         // form url
         let url = format!(
@@ -128,7 +136,7 @@ pub mod client {
         );
 
         // send post with jwt token
-        let res = client.post(&url).bearer_auth(jwt_token).send().await?;
+        let res = self.http_client.post(&url).bearer_auth(jwt_token).send().await?;
 
         Ok("no".to_string())
     }

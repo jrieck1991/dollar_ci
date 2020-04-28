@@ -18,17 +18,19 @@ mod handlers {
     use warp::http::StatusCode;
     use warp::Reply;
 
-    use super::client::client;
+    use super::client::GithubClient;
     use crate::models::Event;
 
     // handle github event payload
     pub async fn event(event: Event) -> Result<impl Reply, Infallible> {
         debug!("event received: {:?}", event);
 
+        let c = GithubClient::new().unwrap();
+
         // route event based on action
         match event.action.as_str() {
             "requested" | "rerequested" => {
-                match client::check_run_create(
+                match c.check_run_create(
                     &event.repository.full_name,
                     &event.check_suite.head_sha,
                     &event.check_suite.check_runs_url,
@@ -53,7 +55,7 @@ mod handlers {
                 Ok(StatusCode::OK)
             }
             "created" => {
-                match client::check_run_start(
+                match c.check_run_start(
                     &event.repository.full_name,
                     &event.check_suite.check_runs_url,
                     event.installation.id,

@@ -26,3 +26,4 @@ All infrastructure is managed by terraform, backend will be migrated to an S3 bu
 * fix terraform VPC race condition
 * read github headers
 * add the github headers we need
+* rename HandlersErr
