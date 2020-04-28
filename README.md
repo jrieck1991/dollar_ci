@@ -27,3 +27,5 @@ All infrastructure is managed by terraform, backend will be migrated to an S3 bu
 * read github headers
 * add the github headers we need
 * rename HandlersErr
+* rename NotFound to something about validation failed
+* figure out how to only call get installation token once per invocation of the github client
