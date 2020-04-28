@@ -1,10 +1,10 @@
 use crate::models::{HandlersErr, Result};
 
+use chrono::Utc;
 use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use chrono::Utc;
 
 #[derive(Deserialize, Serialize, Debug)]
 struct InstallToken {
@@ -27,12 +27,7 @@ impl GithubClient {
                 .parse()
                 .unwrap(),
         );
-        headers.insert(
-            USER_AGENT,
-            "dollar-ci"
-                .parse()
-                .unwrap(),
-        );
+        headers.insert(USER_AGENT, "dollar-ci".parse().unwrap());
 
         // build new client with headers
         let client = ClientBuilder::new().default_headers(headers).build()?;
@@ -83,7 +78,8 @@ impl GithubClient {
         let token = self.get_installation_token(&name, installation_id).await?;
 
         // create request body
-        let body = json!({"name": name, "status": "in_progress", "started_at": Utc::now().timestamp()});
+        let body =
+            json!({"name": name, "status": "in_progress", "started_at": Utc::now().timestamp()});
 
         // send post
         let res = self
@@ -209,9 +205,9 @@ async fn log_response(response: Response) -> Option<Response> {
 
 mod jwt {
     use crate::models::Result;
+    use chrono::{Duration, Utc};
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
-    use chrono::Utc;
     use std::fs;
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -220,7 +216,7 @@ mod jwt {
         sub: String,
         company: String,
         iss: u64,
-        exp: usize,
+        exp: i64,
     }
 
     // create jwt from pem file
@@ -228,13 +224,19 @@ mod jwt {
         // read pem file into string var
         let pem = fs::read_to_string(pem_path)?;
 
+        // get current time in UTC
+        let now = Utc::now();
+
+        // JWT token expiration_time must be <= 10 minutes
+        let expiration_time = now + Duration::minutes(9);
+
         // define claims
         let claims = Claims {
-            iat: Utc::now().timestamp(),
+            iat: now.timestamp(),
             sub: name.to_string(),
             iss: 61447, // app id given by github
             company: String::from("dollar-ci"),
-            exp: 10000000000, // TODO update to 10 minutes
+            exp: expiration_time.timestamp(),
         };
 
         // setup header
