@@ -117,22 +117,15 @@ impl GithubClient {
     // mark 'check_run' as 'complete' with either a fail or pass
     pub async fn check_run_complete(
         &self,
-        name: &str,
-        url: &str,
+        full_name: &str,
+        head_sha: &str,
         success: bool,
         installation_id: u64,
-    ) -> Option<HandlersErr> {
+    ) -> Result<StatusCode> {
         // get installation token
-        let token = match self.get_installation_token(&name, installation_id).await {
-            Ok(token) => token,
-            Err(e) => match e {
-                HandlersErr::Json(e) => return Some(HandlersErr::Json(e)),
-                HandlersErr::Client(e) => return Some(HandlersErr::Client(e)),
-                HandlersErr::Jwt(e) => return Some(HandlersErr::Jwt(e)),
-                HandlersErr::Io(e) => return Some(HandlersErr::Io(e)),
-                HandlersErr::NotFound => return Some(HandlersErr::NotFound),
-            },
-        };
+        let token = self
+            .get_installation_token(&full_name, installation_id)
+            .await?;
 
         // define success param
         let mut conclusion = String::from("success");
@@ -141,28 +134,24 @@ impl GithubClient {
         };
 
         // create body
-        let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": Utc::now().timestamp()});
+        let body = json!({"name": full_name, "head_sha": head_sha, "status": "completed", "conclusion": conclusion, "completed_at": Utc::now().timestamp()});
+
+        // form url
+        let url = format!("{}/repos/{}/check-runs", self.root_endpoint, full_name);
 
         // send post
-        let res = match self
+        let res = self
             .http_client
-            .post(url)
+            .post(&url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
-            .await
-        {
-            Ok(res) => res,
-            Err(e) => {
-                error!("check_run_complete error: {}\nrequest_body: {}", e, &body);
-                return Some(HandlersErr::Client(e));
-            }
-        };
+            .await?;
 
         // validate response is successful, log error response and exit
         match log_response("check_run_complete", res).await {
-            None => return Some(HandlersErr::NotFound),
-            Some(_) => None,
+            None => Err(HandlersErr::NotFound),
+            Some(res) => Ok(res.status()),
         }
     }
     // get_installation_token will create a jwt token from a pem file
