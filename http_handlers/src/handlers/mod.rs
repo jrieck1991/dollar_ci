@@ -2,9 +2,7 @@ mod client;
 
 // http route filters
 pub mod filters {
-    use std::convert::Infallible;
     use super::handlers;
-    use std::error;
     use warp::{Filter, Reply, Rejection, post};
 
     // events listens for github events
@@ -22,8 +20,8 @@ mod handlers {
     use warp::http::StatusCode;
     use warp::Reply;
 
+    use crate::models::Event;
     use super::client;
-    use crate::models::{Result, Event};
 
     // handle github event payload
     pub async fn event(event: Event) -> Result<impl Reply, Infallible> {

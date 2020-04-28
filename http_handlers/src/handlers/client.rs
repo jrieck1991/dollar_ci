@@ -1,13 +1,13 @@
 // http client
-mod client {
+pub mod client {
 
     use super::jwt;
-    use crate::models::{Result, Event, HandlersErr};
+    use crate::models::{Result, HandlersErr};
 
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use time::Instant;
-    use reqwest::{StatusCode, Client, Request};
+    use reqwest::{StatusCode, Client};
 
     #[derive(Deserialize, Serialize, Debug)]
     struct InstallToken {
