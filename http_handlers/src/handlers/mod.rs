@@ -34,7 +34,6 @@ mod handlers {
                     .check_run_create(
                         &event.repository.full_name,
                         &event.check_suite.head_sha,
-                        &event.check_suite.check_runs_url,
                         event.installation.id,
                     )
                     .await
@@ -59,7 +58,7 @@ mod handlers {
                 match c
                     .check_run_start(
                         &event.repository.full_name,
-                        &event.check_suite.check_runs_url,
+                        &event.check_suite.head_sha,
                         event.installation.id,
                     )
                     .await

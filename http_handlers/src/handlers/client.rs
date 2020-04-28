@@ -13,6 +13,7 @@ struct InstallToken {
 
 pub struct GithubClient {
     http_client: Client,
+    root_endpoint: String,
 }
 
 // an http client that talks to the github api
@@ -34,27 +35,32 @@ impl GithubClient {
 
         Ok(GithubClient {
             http_client: client,
+            root_endpoint: String::from("https://api.github.com"),
         })
     }
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
         &self,
-        name: &str,
+        full_name: &str,
         head_sha: &str,
-        url: &str,
         installation_id: u64,
     ) -> Result<StatusCode> {
         // get installation token
-        let token = self.get_installation_token(&name, installation_id).await?;
+        let token = self
+            .get_installation_token(&full_name, installation_id)
+            .await?;
 
         // create body
-        let body = json!({"name": name,"head_sha": head_sha});
+        let body = json!({"name": full_name,"head_sha": head_sha});
+
+        // form url
+        let url = format!("{}/repos/{}/check-runs", self.root_endpoint, full_name);
 
         // send post
         let res = self
             .http_client
-            .post(url)
+            .post(&url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
@@ -70,21 +76,25 @@ impl GithubClient {
     // mark 'check_run' as 'in_progress'
     pub async fn check_run_start(
         &self,
-        name: &str,
-        url: &str,
+        full_name: &str,
+        head_sha: &str,
         installation_id: u64,
     ) -> Result<StatusCode> {
         // get installation token
-        let token = self.get_installation_token(&name, installation_id).await?;
+        let token = self
+            .get_installation_token(&full_name, installation_id)
+            .await?;
 
         // create request body
-        let body =
-            json!({"name": name, "status": "in_progress", "started_at": Utc::now().timestamp()});
+        let body = json!({"name": full_name, "head_sha": head_sha, "status": "in_progress", "started_at": Utc::now().timestamp()});
+
+        // form url
+        let url = format!("{}/repos/{}/check-runs", self.root_endpoint, full_name);
 
         // send post
         let res = self
             .http_client
-            .post(url)
+            .post(&url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
