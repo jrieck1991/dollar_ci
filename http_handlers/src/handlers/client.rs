@@ -1,10 +1,10 @@
 use crate::models::{HandlersErr, Result};
 
-use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use time::Instant;
+use chrono::Utc;
 
 #[derive(Deserialize, Serialize, Debug)]
 struct InstallToken {
@@ -24,6 +24,12 @@ impl GithubClient {
         headers.insert(
             ACCEPT,
             "application/vnd.github.machine-man-preview+json"
+                .parse()
+                .unwrap(),
+        );
+        headers.insert(
+            USER_AGENT,
+            "dollar-ci"
                 .parse()
                 .unwrap(),
         );
@@ -76,8 +82,8 @@ impl GithubClient {
         // get installation token
         let token = self.get_installation_token(&name, installation_id).await?;
 
-        // create body
-        let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
+        // create request body
+        let body = json!({"name": name, "status": "in_progress", "started_at": Utc::now().timestamp()});
 
         // send post
         let res = self
@@ -122,7 +128,7 @@ impl GithubClient {
         };
 
         // create body
-        let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
+        let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": Utc::now().timestamp()});
 
         // send post
         let res = match self
@@ -205,10 +211,12 @@ mod jwt {
     use crate::models::Result;
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
+    use chrono::Utc;
     use std::fs;
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
+        iat: i64,
         sub: String,
         company: String,
         iss: u64,
@@ -222,6 +230,7 @@ mod jwt {
 
         // define claims
         let claims = Claims {
+            iat: Utc::now().timestamp(),
             sub: name.to_string(),
             iss: 61447, // app id given by github
             company: String::from("dollar-ci"),
