@@ -3,13 +3,11 @@ mod client;
 // http route filters
 pub mod filters {
     use super::handlers;
-    use warp::{Filter, Reply, Rejection, post};
+    use warp::{post, Filter, Rejection, Reply};
 
     // events listens for github events
     pub fn events() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-        post()
-            .and(warp::body::json())
-            .and_then(handlers::event)
+        post().and(warp::body::json()).and_then(handlers::event)
     }
 }
 
@@ -20,8 +18,8 @@ mod handlers {
     use warp::http::StatusCode;
     use warp::Reply;
 
-    use crate::models::Event;
     use super::client::client;
+    use crate::models::Event;
 
     // handle github event payload
     pub async fn event(event: Event) -> Result<impl Reply, Infallible> {
@@ -95,8 +93,7 @@ mod tests {
     #[tokio::test]
     async fn test_events() {
         // get test payload from file
-        let payload =
-            fs::read_to_string("action_requested.json").unwrap();
+        let payload = fs::read_to_string("action_requested.json").unwrap();
 
         // send request
         let resp = warp::test::request()

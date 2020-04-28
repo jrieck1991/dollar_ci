@@ -64,7 +64,7 @@ impl Error for HandlersErr {
             HandlersErr::Client(ref err) => Some(err),
             HandlersErr::Jwt(ref err) => Some(err),
             HandlersErr::Io(ref err) => Some(err),
-            HandlersErr::NotFound => Some(&HandlersErr::NotFound)
+            HandlersErr::NotFound => Some(&HandlersErr::NotFound),
         }
     }
 }

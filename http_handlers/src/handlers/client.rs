@@ -2,12 +2,12 @@
 pub mod client {
 
     use super::jwt;
-    use crate::models::{Result, HandlersErr};
+    use crate::models::{HandlersErr, Result};
 
+    use reqwest::{Client, StatusCode};
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use time::Instant;
-    use reqwest::{StatusCode, Client};
 
     #[derive(Deserialize, Serialize, Debug)]
     struct InstallToken {
@@ -135,10 +135,10 @@ pub mod client {
 }
 
 mod jwt {
+    use crate::models::Result;
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::fs;
-    use crate::models::{Result};
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
@@ -186,5 +186,4 @@ mod tests {
             Err(e) => panic!(e),
         }
     }
-
 }
