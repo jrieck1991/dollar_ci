@@ -1,7 +1,7 @@
 use crate::models::{HandlersErr, Result};
 
-use reqwest::header::HeaderMap;
-use reqwest::{Client, ClientBuilder, StatusCode};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION};
+use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::Instant;
@@ -19,7 +19,16 @@ pub struct GithubClient {
 impl GithubClient {
     // init new GithubClient
     pub fn new() -> Result<GithubClient> {
+        // default headers for all requests
         let mut headers = HeaderMap::new();
+        headers.insert(
+            ACCEPT,
+            "application/vnd.github.machine-man-preview+json"
+                .parse()
+                .unwrap(),
+        );
+
+        // build new client with headers
         let client = ClientBuilder::new().default_headers(headers).build()?;
 
         Ok(GithubClient {
@@ -46,7 +55,7 @@ impl GithubClient {
             .http_client
             .post(url)
             .json(&body)
-            .bearer_auth(token)
+            .header(AUTHORIZATION, format!("token {}", token))
             .send()
             .await?
             .status())
@@ -70,7 +79,7 @@ impl GithubClient {
             .http_client
             .post(url)
             .json(&body)
-            .bearer_auth(token)
+            .header(AUTHORIZATION, format!("token {}", token))
             .send()
             .await?
             .status())
@@ -110,7 +119,7 @@ impl GithubClient {
             .http_client
             .post(url)
             .json(&body)
-            .bearer_auth(token)
+            .header(AUTHORIZATION, format!("token {}", token))
             .send()
             .await
         {
@@ -147,8 +156,37 @@ impl GithubClient {
             .send()
             .await?;
 
-        Ok("no".to_string())
+        // validate response is successful, log error response and exit
+        let success_res = match log_response(res).await {
+            None => return Err(HandlersErr::NotFound),
+            Some(success_res) => success_res,
+        };
+
+        // get installation access token from successful response
+        match success_res.json::<InstallToken>().await {
+            Ok(install_token) => Ok(install_token.token),
+            Err(e) => Err(HandlersErr::Client(e)),
+        }
     }
+}
+
+// log_response will log response errors, only returns the Reponse type
+// if the request was successful so that we can do additional processing
+async fn log_response(response: Response) -> Option<Response> {
+    
+    // if no error, return the response given
+    match &response.error_for_status_ref() {
+        Ok(_) => return Some(response),
+        Err(e) => error!("response error code: {:?}", e.status()),
+    };
+
+    // if error log the response body error message
+    match response.text().await {
+        Ok(content) => error!("response error body: {}", content),
+        Err(e) => error!("response body parse error: {:?}", e),
+    };
+
+    None
 }
 
 mod jwt {
