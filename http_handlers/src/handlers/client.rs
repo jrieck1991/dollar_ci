@@ -1,10 +1,10 @@
 use crate::models::{HandlersErr, Result};
 
-use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION};
+use chrono::Utc;
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use time::Instant;
 
 #[derive(Deserialize, Serialize, Debug)]
 struct InstallToken {
@@ -13,6 +13,7 @@ struct InstallToken {
 
 pub struct GithubClient {
     http_client: Client,
+    root_endpoint: String,
 }
 
 // an http client that talks to the github api
@@ -27,40 +28,53 @@ impl GithubClient {
                 .parse()
                 .unwrap(),
         );
+        headers.append(
+            ACCEPT,
+            "application/vnd.github.antiope-preview+json"
+                .parse()
+                .unwrap(),
+        );
+        headers.insert(USER_AGENT, "dollar-ci".parse().unwrap());
+        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
         // build new client with headers
         let client = ClientBuilder::new().default_headers(headers).build()?;
 
         Ok(GithubClient {
             http_client: client,
+            root_endpoint: String::from("https://api.github.com"),
         })
     }
 
     // tell github to create 'check_run'
     pub async fn check_run_create(
         &self,
-        name: &str,
+        full_name: &str,
         head_sha: &str,
-        url: &str,
         installation_id: u64,
     ) -> Result<StatusCode> {
         // get installation token
-        let token = self.get_installation_token(&name, installation_id).await?;
+        let token = self
+            .get_installation_token(&full_name, installation_id)
+            .await?;
 
         // create body
-        let body = json!({"name": name,"head_sha": head_sha});
+        let body = json!({"name": full_name,"head_sha": head_sha});
+
+        // form url
+        let url = format!("{}/repos/{}/check-runs", self.root_endpoint, full_name);
 
         // send post
         let res = self
             .http_client
-            .post(url)
+            .post(&url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
             .await?;
 
         // validate response is successful, log error response and exit
-        match log_response(res).await {
+        match log_response("check_run_create", res).await {
             None => Err(HandlersErr::NotFound),
             Some(res) => Ok(res.status()),
         }
@@ -69,27 +83,32 @@ impl GithubClient {
     // mark 'check_run' as 'in_progress'
     pub async fn check_run_start(
         &self,
-        name: &str,
-        url: &str,
+        full_name: &str,
+        head_sha: &str,
         installation_id: u64,
     ) -> Result<StatusCode> {
         // get installation token
-        let token = self.get_installation_token(&name, installation_id).await?;
+        let token = self
+            .get_installation_token(&full_name, installation_id)
+            .await?;
 
-        // create body
-        let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
+        // create request body
+        let body = json!({"name": full_name, "head_sha": head_sha, "status": "in_progress", "started_at": Utc::now().timestamp()});
+
+        // form url
+        let url = format!("{}/repos/{}/check-runs", self.root_endpoint, full_name);
 
         // send post
         let res = self
             .http_client
-            .post(url)
+            .post(&url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
             .await?;
 
         // validate response is successful, log error response and exit
-        match log_response(res).await {
+        match log_response("check_run_start", res).await {
             None => Err(HandlersErr::NotFound),
             Some(res) => Ok(res.status()),
         }
@@ -122,7 +141,7 @@ impl GithubClient {
         };
 
         // create body
-        let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
+        let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": Utc::now().timestamp()});
 
         // send post
         let res = match self
@@ -141,7 +160,7 @@ impl GithubClient {
         };
 
         // validate response is successful, log error response and exit
-        match log_response(res).await {
+        match log_response("check_run_complete", res).await {
             None => return Some(HandlersErr::NotFound),
             Some(_) => None,
         }
@@ -149,6 +168,8 @@ impl GithubClient {
     // get_installation_token will create a jwt token from a pem file
     // use as bearer in request to generate installation token
     async fn get_installation_token(&self, name: &str, installation_id: u64) -> Result<String> {
+        debug!("attempting to retrieve installation token for {}", name);
+
         // create jwt token
         let jwt_token = jwt::create(
             name,
@@ -170,14 +191,20 @@ impl GithubClient {
             .await?;
 
         // validate response is successful, log error response and exit
-        let success_res = match log_response(res).await {
+        let success_res = match log_response("get_installation_token", res).await {
             None => return Err(HandlersErr::NotFound),
             Some(success_res) => success_res,
         };
 
         // get installation access token from successful response
         match success_res.json::<InstallToken>().await {
-            Ok(install_token) => Ok(install_token.token),
+            Ok(install_token) => {
+                debug!(
+                    "successfully retrieved installation access token for {}",
+                    name
+                );
+                Ok(install_token.token)
+            }
             Err(e) => Err(HandlersErr::Client(e)),
         }
     }
@@ -185,17 +212,17 @@ impl GithubClient {
 
 // log_response will log response errors, only returns the Reponse type
 // if the request was successful so that we can do additional processing
-async fn log_response(response: Response) -> Option<Response> {
+async fn log_response(name: &str, response: Response) -> Option<Response> {
     // if no error, return the response given
     match &response.error_for_status_ref() {
         Ok(_) => return Some(response),
-        Err(e) => error!("response error code: {:?}", e.status()),
+        Err(e) => error!("{} response error code: {:?}", name, e.status()),
     };
 
     // if error log the response body error message
     match response.text().await {
-        Ok(content) => error!("response error body: {}", content),
-        Err(e) => error!("response body parse error: {:?}", e),
+        Ok(content) => error!("{} response error body: {}", name, content),
+        Err(e) => error!("{} response body parse error: {:?}", name, e),
     };
 
     None
@@ -203,16 +230,18 @@ async fn log_response(response: Response) -> Option<Response> {
 
 mod jwt {
     use crate::models::Result;
+    use chrono::{Duration, Utc};
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::fs;
 
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
+        iat: i64,
         sub: String,
         company: String,
         iss: u64,
-        exp: usize,
+        exp: i64,
     }
 
     // create jwt from pem file
@@ -220,12 +249,19 @@ mod jwt {
         // read pem file into string var
         let pem = fs::read_to_string(pem_path)?;
 
+        // get current time in UTC
+        let now = Utc::now();
+
+        // JWT token expiration_time must be <= 10 minutes
+        let expiration_time = now + Duration::minutes(9);
+
         // define claims
         let claims = Claims {
+            iat: now.timestamp(),
             sub: name.to_string(),
             iss: 61447, // app id given by github
             company: String::from("dollar-ci"),
-            exp: 10000000000, // TODO update to 10 minutes
+            exp: expiration_time.timestamp(),
         };
 
         // setup header
