@@ -51,14 +51,19 @@ impl GithubClient {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        Ok(self
+        let res = self
             .http_client
             .post(url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
-            .await?
-            .status())
+            .await?;
+
+        // validate response is successful, log error response and exit
+        match log_response(res).await {
+            None => Err(HandlersErr::NotFound),
+            Some(res) => Ok(res.status()),
+        }
     }
 
     // mark 'check_run' as 'in_progress'
@@ -75,14 +80,19 @@ impl GithubClient {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        Ok(self
+        let res = self
             .http_client
             .post(url)
             .json(&body)
             .header(AUTHORIZATION, format!("token {}", token))
             .send()
-            .await?
-            .status())
+            .await?;
+
+        // validate response is successful, log error response and exit
+        match log_response(res).await {
+            None => Err(HandlersErr::NotFound),
+            Some(res) => Ok(res.status()),
+        }
     }
 
     // mark 'check_run' as 'complete' with either a fail or pass
@@ -115,7 +125,7 @@ impl GithubClient {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match self
+        let res = match self
             .http_client
             .post(url)
             .json(&body)
@@ -123,14 +133,17 @@ impl GithubClient {
             .send()
             .await
         {
-            Ok(res) => {
-                info!("check_run_complete status_code: {}", res.status());
-                None
-            }
+            Ok(res) => res,
             Err(e) => {
                 error!("check_run_complete error: {}\nrequest_body: {}", e, &body);
-                Some(HandlersErr::Client(e))
+                return Some(HandlersErr::Client(e));
             }
+        };
+
+        // validate response is successful, log error response and exit
+        match log_response(res).await {
+            None => return Some(HandlersErr::NotFound),
+            Some(_) => None,
         }
     }
     // get_installation_token will create a jwt token from a pem file
@@ -173,7 +186,6 @@ impl GithubClient {
 // log_response will log response errors, only returns the Reponse type
 // if the request was successful so that we can do additional processing
 async fn log_response(response: Response) -> Option<Response> {
-    
     // if no error, return the response given
     match &response.error_for_status_ref() {
         Ok(_) => return Some(response),
