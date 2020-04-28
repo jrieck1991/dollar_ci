@@ -21,7 +21,7 @@ mod handlers {
     use warp::Reply;
 
     use crate::models::Event;
-    use super::client;
+    use super::client::client;
 
     // handle github event payload
     pub async fn event(event: Event) -> Result<impl Reply, Infallible> {
