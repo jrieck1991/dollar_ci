@@ -1,7 +1,7 @@
 use crate::models::{HandlersErr, Result};
 
-use reqwest::{Client, ClientBuilder, StatusCode};
 use reqwest::header::HeaderMap;
+use reqwest::{Client, ClientBuilder, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::Instant;
@@ -17,14 +17,11 @@ pub struct GithubClient {
 
 // an http client that talks to the github api
 impl GithubClient {
-
     // init new GithubClient
     pub fn new() -> Result<GithubClient> {
-
         let mut headers = HeaderMap::new();
-        let client = ClientBuilder::new()
-            .default_headers(headers).build()?;
-        
+        let client = ClientBuilder::new().default_headers(headers).build()?;
+
         Ok(GithubClient {
             http_client: client,
         })
@@ -38,7 +35,6 @@ impl GithubClient {
         url: &str,
         installation_id: u64,
     ) -> Result<StatusCode> {
-        
         // get installation token
         let token = self.get_installation_token(&name, installation_id).await?;
 
@@ -46,7 +42,8 @@ impl GithubClient {
         let body = json!({"name": name,"head_sha": head_sha});
 
         // send post
-        Ok(self.http_client
+        Ok(self
+            .http_client
             .post(url)
             .json(&body)
             .bearer_auth(token)
@@ -69,7 +66,8 @@ impl GithubClient {
         let body = json!({"name": name, "status": "in_progress", "started_at": format!("{:?}", Instant::now())});
 
         // send post
-        Ok(self.http_client
+        Ok(self
+            .http_client
             .post(url)
             .json(&body)
             .bearer_auth(token)
@@ -86,7 +84,6 @@ impl GithubClient {
         success: bool,
         installation_id: u64,
     ) -> Option<HandlersErr> {
-
         // get installation token
         let token = match self.get_installation_token(&name, installation_id).await {
             Ok(token) => token,
@@ -109,7 +106,14 @@ impl GithubClient {
         let body = json!({"name": name, "status": "completed", "conclusion": conclusion, "completed_at": format!("{:?}", Instant::now())});
 
         // send post
-        match self.http_client.post(url).json(&body).bearer_auth(token).send().await {
+        match self
+            .http_client
+            .post(url)
+            .json(&body)
+            .bearer_auth(token)
+            .send()
+            .await
+        {
             Ok(res) => {
                 info!("check_run_complete status_code: {}", res.status());
                 None
@@ -136,7 +140,12 @@ impl GithubClient {
         );
 
         // send post with jwt token
-        let res = self.http_client.post(&url).bearer_auth(jwt_token).send().await?;
+        let res = self
+            .http_client
+            .post(&url)
+            .bearer_auth(jwt_token)
+            .send()
+            .await?;
 
         Ok("no".to_string())
     }
