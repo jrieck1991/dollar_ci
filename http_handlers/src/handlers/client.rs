@@ -24,7 +24,13 @@ impl GithubClient {
         let mut headers = HeaderMap::new();
         headers.insert(
             ACCEPT,
-            "application/vnd.github.machine-man-preview+json, application/vnd.github.antiope-preview+json"
+            "application/vnd.github.machine-man-preview+json"
+                .parse()
+                .unwrap(),
+        );
+        headers.append(
+            ACCEPT,
+            "application/vnd.github.antiope-preview+json"
                 .parse()
                 .unwrap(),
         );
